@@ -2387,14 +2387,17 @@
                             )
                         )
                     ),
-                    !configured && React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5' },
-                        React.createElement('h3', { className: 'text-lg font-extrabold mb-3' }, 'Supabase 連線設定'),
-                        React.createElement('p', { className: 'text-sm text-slate-600 dark:text-slate-300 mb-4' }, '先建立 Supabase 專案並執行 supabase/schema.sql。臨時測試可在這裡貼入 URL 與 anon key；正式發布建議寫入 supabase-config.js。'),
+                    React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5' },
+                        React.createElement('h3', { className: 'text-lg font-extrabold mb-3' }, configured ? 'Supabase 連線設定（可修改）' : 'Supabase 連線設定'),
+                        React.createElement('p', { className: 'text-sm text-slate-600 dark:text-slate-300 mb-4' }, configured ? '如 Project URL 或 anon public key 貼錯，可在這裡直接修改後重新載入。' : '先建立 Supabase 專案並執行 supabase/schema.sql。臨時測試可在這裡貼入 URL 與 anon key；正式發布建議寫入 supabase-config.js。'),
                         React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-3' },
                             React.createElement('input', { value: cloudConfigForm.url, onChange: e => setCloudConfigForm({ ...cloudConfigForm, url: e.target.value }), placeholder: 'https://xxxx.supabase.co', className: 'border rounded-lg px-3 py-2' }),
                             React.createElement('input', { value: cloudConfigForm.anonKey, onChange: e => setCloudConfigForm({ ...cloudConfigForm, anonKey: e.target.value }), placeholder: 'Supabase anon public key', className: 'border rounded-lg px-3 py-2' })
                         ),
-                        React.createElement('button', { onClick: saveSupabaseConfig, className: `mt-4 px-5 py-2 rounded-lg text-white font-bold ${currentTheme.color}` }, '保存設定並重新載入')
+                        React.createElement('div', { className: 'flex flex-wrap gap-2 mt-4' },
+                            React.createElement('button', { onClick: saveSupabaseConfig, className: `px-5 py-2 rounded-lg text-white font-bold ${currentTheme.color}` }, '保存設定並重新載入'),
+                            configured && React.createElement('button', { onClick: () => { if (confirm('確定清除本瀏覽器保存的 Supabase 連線設定並重新載入？')) { localStorage.removeItem('maritime_supabase_config'); window.location.reload(); } }, className: 'px-5 py-2 rounded-lg border border-slate-300 font-bold text-slate-700 dark:text-slate-200' }, '清除本機 Supabase 設定')
+                        )
                     ),
                     configured && !cloudSession && React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5 max-w-xl' },
                         React.createElement('h3', { className: 'text-lg font-extrabold mb-3' }, authMode === 'signin' ? '登入' : '註冊新帳號'),
