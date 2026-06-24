@@ -1697,13 +1697,15 @@
                 applicableShipTypes: Array.isArray(t.applicableShipTypes) ? t.applicableShipTypes : (t.applicableShipTypes ? [t.applicableShipTypes] : [])
             })) : [];
 
+            const isPlaceholderSupabaseConfig = (cfg) => !cfg || !cfg.url || !cfg.anonKey || String(cfg.url).includes('YOUR_') || String(cfg.anonKey).includes('YOUR_');
             const getStoredSupabaseConfig = () => {
-                const cfg = (window.MARITIME_SUPABASE_CONFIG || window.SUPABASE_CONFIG || {});
+                const fileCfg = (window.MARITIME_SUPABASE_CONFIG || window.SUPABASE_CONFIG || {});
                 let localCfg = {};
                 try { localCfg = JSON.parse(localStorage.getItem('maritime_supabase_config') || '{}'); } catch (_) { localCfg = {}; }
-                return { ...localCfg, ...cfg };
+                // 正式 supabase-config.js 有效時用檔案設定；若檔案仍是 YOUR_* 範本，改用管理中心保存在瀏覽器的設定。
+                return isPlaceholderSupabaseConfig(fileCfg) ? localCfg : fileCfg;
             };
-            const isUsableSupabaseConfig = (cfg) => !!(cfg && cfg.url && cfg.anonKey && !String(cfg.url).includes('YOUR_') && !String(cfg.anonKey).includes('YOUR_'));
+            const isUsableSupabaseConfig = (cfg) => !isPlaceholderSupabaseConfig(cfg);
             const canEditCloud = () => !cloudRef.current.client || ['owner', 'admin', 'editor'].includes(cloudRef.current.role);
             const canAdminCloud = () => ['owner', 'admin'].includes(cloudRef.current.role);
 
