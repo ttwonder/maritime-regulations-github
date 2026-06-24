@@ -1165,6 +1165,35 @@
     }
   </style>
 
+
+  <style id="readability-final-admin-chart-fix">
+    /* 管理中心白底描邊按鈕：強制黑字，避免白字落在白底 */
+    .admin-outline-button,
+    .admin-outline-button *,
+    .admin-outline-button svg {
+      color: #0f172a !important;
+      -webkit-text-fill-color: #0f172a !important;
+      stroke: currentColor !important;
+    }
+
+    /* 優先級篩選列：所有文字與數字改黑色，避免淡色底上白字看不清 */
+    .priority-filter-button,
+    .priority-filter-button *,
+    .priority-filter-button span {
+      color: #0f172a !important;
+      -webkit-text-fill-color: #0f172a !important;
+    }
+
+    /* Dashboard 圓餅圖文字：取消描邊/陰影，改用乾淨深色字 */
+    .dashboard-pie-label {
+      fill: #0f172a !important;
+      stroke: none !important;
+      paint-order: normal !important;
+      text-shadow: none !important;
+      filter: none !important;
+    }
+  </style>
+
 </head>
 <body class="bg-slate-200 dark:bg-darkbg text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen flex flex-col">
   
@@ -1536,7 +1565,7 @@
                 if (slicePercent === 1) {
                     return (React.createElement("g", { key: i },
                         React.createElement("circle", { cx: center, cy: center, r: radius, fill: slice.color, stroke: "white", strokeWidth: "2", className: "dark:stroke-darkcard" }),
-                        React.createElement("text", { x: center, y: center, fill: "white", fontSize: "16", fontWeight: "bold", textAnchor: "middle", dominantBaseline: "middle", style: { textShadow: '0px 1px 3px rgba(0,0,0,0.8)' } },
+                        React.createElement("text", { x: center, y: center, fill: "#0f172a", fontSize: "16", fontWeight: "bold", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label" },
                             React.createElement("tspan", { x: center, dy: "-0.5em" }, slice.label),
                             React.createElement("tspan", { x: center, dy: "1.2em" },
                                 slice.value,
@@ -1554,12 +1583,12 @@
                 const labelY = center + Math.sin(2 * Math.PI * midPercent - Math.PI / 2) * labelRadius;
                 return (React.createElement("g", { key: i },
                     React.createElement("path", { d: `M ${center} ${center} L ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY} Z`, fill: slice.color, stroke: "white", strokeWidth: "1.5", className: "dark:stroke-darkcard" }),
-                    slicePercent > 0.08 && (React.createElement("text", { x: labelX, y: labelY, fill: "white", fontSize: "14", fontWeight: "bold", textAnchor: "middle", dominantBaseline: "middle", style: { textShadow: '0px 1px 3px rgba(0,0,0,0.8)' } },
+                    slicePercent > 0.08 && (React.createElement("text", { x: labelX, y: labelY, fill: "#0f172a", fontSize: "14", fontWeight: "bold", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label" },
                         React.createElement("tspan", { x: labelX, dy: "-0.4em" }, slice.label),
                         React.createElement("tspan", { x: labelX, dy: "1.3em" },
                             slice.value,
                             "\u4EF6"))),
-                    slicePercent > 0.04 && slicePercent <= 0.08 && (React.createElement("text", { x: labelX, y: labelY, fill: "white", fontSize: "14", fontWeight: "bold", textAnchor: "middle", dominantBaseline: "middle", style: { textShadow: '0px 1px 3px rgba(0,0,0,0.8)' } }, slice.value))));
+                    slicePercent > 0.04 && slicePercent <= 0.08 && (React.createElement("text", { x: labelX, y: labelY, fill: "#0f172a", fontSize: "14", fontWeight: "bold", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label" }, slice.value))));
             })));
         };
         // --- 初始資料 ---
@@ -1708,6 +1737,19 @@
             const isUsableSupabaseConfig = (cfg) => !isPlaceholderSupabaseConfig(cfg);
             const canEditCloud = () => !cloudRef.current.client || ['owner', 'admin', 'editor'].includes(cloudRef.current.role);
             const canAdminCloud = () => ['owner', 'admin'].includes(cloudRef.current.role);
+            const USERNAME_AUTH_DOMAIN = 'maritime.local';
+            const normalizeLoginIdentifier = (value) => {
+                const raw = String(value || '').trim().toLowerCase();
+                if (!raw) return '';
+                if (raw.includes('@')) return raw;
+                const username = raw.replace(/[^a-z0-9._-]/g, '');
+                return username ? `${username}@${USERNAME_AUTH_DOMAIN}` : '';
+            };
+            const displayIdentity = (value) => {
+                const raw = String(value || '').trim().toLowerCase();
+                const suffix = `@${USERNAME_AUTH_DOMAIN}`;
+                return raw.endsWith(suffix) ? raw.slice(0, -suffix.length) : raw;
+            };
 
             const summarizeTaskChange = (prevTasks, nextTasks) => {
                 if (!Array.isArray(prevTasks) || !Array.isArray(nextTasks)) return { entityId: 'tasks', summary: '儲存法規清單' };
@@ -2338,7 +2380,9 @@
                 if (!loginEmail || !loginPassword) { alert('請填入 Email 與密碼。'); return; }
                 setIsCloudBusy(true);
                 try {
-                    const credentials = { email: loginEmail.trim(), password: loginPassword };
+                    const loginId = normalizeLoginIdentifier(loginEmail);
+                    if (!loginId) { alert('請填入 Email 或用戶名。'); return; }
+                    const credentials = { email: loginId, password: loginPassword };
                     const { error } = authMode === 'signup'
                         ? await cloudClient.auth.signUp(credentials)
                         : await cloudClient.auth.signInWithPassword(credentials);
@@ -2357,8 +2401,8 @@
             };
             const upsertMember = async (email, role, active = true) => {
                 if (!cloudClient || !canAdminCloud()) { alert('需要 admin/owner 權限。'); return; }
-                const cleanEmail = String(email || '').trim().toLowerCase();
-                if (!cleanEmail) { alert('請填入 email。'); return; }
+                const cleanEmail = normalizeLoginIdentifier(email);
+                if (!cleanEmail) { alert('請填入 Email 或用戶名。'); return; }
                 setIsCloudBusy(true);
                 try {
                     const { error } = await cloudClient.from('app_members').upsert({ email: cleanEmail, role, active, updated_at: new Date().toISOString() }, { onConflict: 'email' });
@@ -2396,45 +2440,47 @@
                         ),
                         React.createElement('div', { className: 'flex flex-wrap gap-2 mt-4' },
                             React.createElement('button', { onClick: saveSupabaseConfig, className: `px-5 py-2 rounded-lg text-white font-bold ${currentTheme.color}` }, '保存設定並重新載入'),
-                            configured && React.createElement('button', { onClick: () => { if (confirm('確定清除本瀏覽器保存的 Supabase 連線設定並重新載入？')) { localStorage.removeItem('maritime_supabase_config'); window.location.reload(); } }, className: 'px-5 py-2 rounded-lg border border-slate-300 font-bold text-slate-700 dark:text-slate-200' }, '清除本機 Supabase 設定')
+                            configured && React.createElement('button', { onClick: () => { if (confirm('確定清除本瀏覽器保存的 Supabase 連線設定並重新載入？')) { localStorage.removeItem('maritime_supabase_config'); window.location.reload(); } }, className: 'admin-outline-button px-5 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-900' }, '清除本機 Supabase 設定')
                         )
                     ),
                     configured && !cloudSession && React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5 max-w-xl' },
                         React.createElement('h3', { className: 'text-lg font-extrabold mb-3' }, authMode === 'signin' ? '登入' : '註冊新帳號'),
+                        React.createElement('p', { className: 'text-sm text-slate-600 mb-3' }, '可用 Email 登入；也可用管理員指定的用戶名登入。用戶名會自動轉成內部登入帳號，不需要輸入 Email。'),
                         React.createElement('div', { className: 'space-y-3' },
-                            React.createElement('input', { value: loginEmail, onChange: e => setLoginEmail(e.target.value), placeholder: 'Email', className: 'w-full border rounded-lg px-3 py-2' }),
+                            React.createElement('input', { value: loginEmail, onChange: e => setLoginEmail(e.target.value), placeholder: 'Email 或用戶名', className: 'w-full border rounded-lg px-3 py-2' }),
                             React.createElement('input', { value: loginPassword, type: 'password', onChange: e => setLoginPassword(e.target.value), placeholder: '密碼', className: 'w-full border rounded-lg px-3 py-2' }),
                             React.createElement('div', { className: 'flex gap-2' },
                                 React.createElement('button', { disabled: isCloudBusy, onClick: handleAuthSubmit, className: `px-5 py-2 rounded-lg text-white font-bold ${currentTheme.color}` }, authMode === 'signin' ? '登入' : '註冊'),
-                                React.createElement('button', { onClick: () => setAuthMode(authMode === 'signin' ? 'signup' : 'signin'), className: 'px-5 py-2 rounded-lg border border-slate-300 font-bold' }, authMode === 'signin' ? '切換註冊' : '切換登入')
+                                React.createElement('button', { onClick: () => setAuthMode(authMode === 'signin' ? 'signup' : 'signin'), className: 'admin-outline-button px-5 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-900' }, authMode === 'signin' ? '切換註冊' : '切換登入')
                             )
                         )
                     ),
-                    configured && cloudSession && cloudRole === 'blocked' && React.createElement('div', { className: 'bg-amber-50 border border-amber-200 rounded-xl p-5 text-amber-900 font-bold' }, '此帳號已登入，但不在權限名單內。請讓管理員在「權限名單」加入你的 email。'),
+                    configured && cloudSession && cloudRole === 'blocked' && React.createElement('div', { className: 'bg-amber-50 border border-amber-200 rounded-xl p-5 text-amber-900 font-bold' }, '此帳號已登入，但不在權限名單內。請讓管理員在「權限名單」加入你的 Email 或用戶名。'),
                     configured && cloudSession && cloudRole !== 'blocked' && React.createElement(Fragment, null,
                         React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5' },
                             React.createElement('h3', { className: 'text-lg font-extrabold mb-3' }, '雲端資料操作'),
                             React.createElement('div', { className: 'flex flex-wrap gap-2' },
                                 React.createElement('button', { onClick: () => loadCloudState(cloudClient, cloudSession), className: 'px-4 py-2 rounded-lg bg-slate-700 text-white font-bold text-sm' }, '重新載入雲端資料'),
                                 ['owner','admin','editor'].includes(cloudRole) && React.createElement('button', { onClick: forceSyncLocalToCloud, className: `px-4 py-2 rounded-lg text-white font-bold text-sm ${currentTheme.color}` }, '手動同步本機資料到雲端'),
-                                React.createElement('button', { onClick: () => loadAuditLogs(), className: 'px-4 py-2 rounded-lg border border-slate-300 font-bold text-sm' }, '刷新 LOG')
+                                React.createElement('button', { onClick: () => loadAuditLogs(), className: 'admin-outline-button px-4 py-2 rounded-lg border border-slate-300 bg-white font-bold text-sm text-slate-900' }, '刷新 LOG')
                             )
                         ),
                         canAdminCloud() && React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5' },
                             React.createElement('h3', { className: 'text-lg font-extrabold mb-3' }, '權限名單'),
+                            React.createElement('p', { className: 'text-sm text-slate-600 mb-3' }, '可輸入 Email，也可只輸入用戶名。若只輸入用戶名，例如 zhangsan，系統會用內部帳號 zhangsan@maritime.local 做登入。'),
                             React.createElement('div', { className: 'flex flex-col md:flex-row gap-2 mb-4' },
-                                React.createElement('input', { value: newMemberEmail, onChange: e => setNewMemberEmail(e.target.value), placeholder: 'user@example.com', className: 'flex-1 border rounded-lg px-3 py-2' }),
+                                React.createElement('input', { value: newMemberEmail, onChange: e => setNewMemberEmail(e.target.value), placeholder: 'Email 或用戶名，例如 zhangsan', className: 'flex-1 border rounded-lg px-3 py-2' }),
                                 React.createElement('select', { value: newMemberRole, onChange: e => setNewMemberRole(e.target.value), className: 'border rounded-lg px-3 py-2' }, ROLE_OPTIONS.map(r => React.createElement('option', { key: r, value: r }, ROLE_LABELS[r]))),
                                 React.createElement('button', { onClick: () => upsertMember(newMemberEmail, newMemberRole, true), className: `px-5 py-2 rounded-lg text-white font-bold ${currentTheme.color}` }, '新增/更新')
                             ),
                             React.createElement('div', { className: 'overflow-x-auto' },
                                 React.createElement('table', { className: 'w-full text-sm border-collapse' },
-                                    React.createElement('thead', null, React.createElement('tr', { className: 'bg-slate-100' }, ['Email','角色','狀態','操作'].map(h => React.createElement('th', { key: h, className: 'text-left p-2 border' }, h)))),
+                                    React.createElement('thead', null, React.createElement('tr', { className: 'bg-slate-100' }, ['使用者','角色','狀態','操作'].map(h => React.createElement('th', { key: h, className: 'text-left p-2 border' }, h)))),
                                     React.createElement('tbody', null, members.map(m => React.createElement('tr', { key: m.email },
-                                        React.createElement('td', { className: 'p-2 border font-bold' }, m.email),
+                                        React.createElement('td', { className: 'p-2 border font-bold' }, displayIdentity(m.email)),
                                         React.createElement('td', { className: 'p-2 border' }, React.createElement('select', { value: m.role, onChange: e => upsertMember(m.email, e.target.value, m.active), className: 'border rounded px-2 py-1' }, ROLE_OPTIONS.map(r => React.createElement('option', { key: r, value: r }, ROLE_LABELS[r])))),
                                         React.createElement('td', { className: 'p-2 border' }, m.active ? '啟用' : '停用'),
-                                        React.createElement('td', { className: 'p-2 border' }, React.createElement('button', { onClick: () => upsertMember(m.email, m.role, !m.active), className: 'px-3 py-1 rounded border font-bold text-xs' }, m.active ? '停用' : '啟用'))
+                                        React.createElement('td', { className: 'p-2 border' }, React.createElement('button', { onClick: () => upsertMember(m.email, m.role, !m.active), className: 'admin-outline-button px-3 py-1 rounded border bg-white font-bold text-xs text-slate-900' }, m.active ? '停用' : '啟用'))
                                     )))
                                 )
                             )
@@ -2443,7 +2489,7 @@
                             React.createElement('div', { className: 'flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4' },
                                 React.createElement('h3', { className: 'text-lg font-extrabold' }, '可查詢修改 LOG'),
                                 React.createElement('div', { className: 'flex gap-2' },
-                                    React.createElement('input', { value: logSearch, onChange: e => setLogSearch(e.target.value), onKeyDown: e => { if (e.key === 'Enter') loadAuditLogs(); }, placeholder: '搜尋 email / 動作 / 編號 / 摘要', className: 'border rounded-lg px-3 py-2 w-72 max-w-full' }),
+                                    React.createElement('input', { value: logSearch, onChange: e => setLogSearch(e.target.value), onKeyDown: e => { if (e.key === 'Enter') loadAuditLogs(); }, placeholder: '搜尋使用者 / 動作 / 編號 / 摘要', className: 'border rounded-lg px-3 py-2 w-72 max-w-full' }),
                                     React.createElement('button', { onClick: () => loadAuditLogs(), className: `px-4 py-2 rounded-lg text-white font-bold ${currentTheme.color}` }, '查詢')
                                 )
                             ),
@@ -2452,7 +2498,7 @@
                                     React.createElement('thead', null, React.createElement('tr', { className: 'bg-slate-100' }, ['時間','使用者','動作','對象','摘要'].map(h => React.createElement('th', { key: h, className: 'text-left p-2 border' }, h)))),
                                     React.createElement('tbody', null, logs.length ? logs.map(l => React.createElement('tr', { key: l.id },
                                         React.createElement('td', { className: 'p-2 border whitespace-nowrap' }, new Date(l.created_at).toLocaleString()),
-                                        React.createElement('td', { className: 'p-2 border' }, l.actor_email || ''),
+                                        React.createElement('td', { className: 'p-2 border' }, displayIdentity(l.actor_email) || ''),
                                         React.createElement('td', { className: 'p-2 border font-bold' }, l.action),
                                         React.createElement('td', { className: 'p-2 border' }, `${l.entity_type || ''}/${l.entity_id || ''}`),
                                         React.createElement('td', { className: 'p-2 border' }, l.summary || '')
@@ -2746,7 +2792,7 @@
                                 const count = priorityCounts[p];
                                 const isSelected = filters.priority.includes(p);
                                 const btnClass = getPriorityColor(p);
-                                return (React.createElement("button", { key: p, onClick: () => toggleFilter('priority', p), className: `flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-bold transition-all ${isSelected ? 'ring-2 ring-offset-2 dark:ring-offset-darkcard ' + currentTheme.ring : 'opacity-80 hover:opacity-100'} ${btnClass}` },
+                                return (React.createElement("button", { key: p, onClick: () => toggleFilter('priority', p), className: `priority-filter-button flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-bold transition-all ${isSelected ? 'ring-2 ring-offset-2 dark:ring-offset-darkcard ' + currentTheme.ring : 'opacity-80 hover:opacity-100'} ${btnClass}` },
                                     p,
                                     React.createElement("span", { className: "bg-black/10 dark:bg-white/20 px-2 py-0.5 rounded-full text-xs leading-none inline-block min-w-[20px] text-center font-bold" }, count)));
                             })),
