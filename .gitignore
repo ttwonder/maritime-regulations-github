@@ -1,0 +1,14 @@
+# Local/private config variants
+supabase-config.local.js
+.env
+.env.*
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Dependency/build artifacts
+node_modules/
+dist/
