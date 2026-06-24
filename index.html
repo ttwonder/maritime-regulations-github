@@ -1194,6 +1194,48 @@
     }
   </style>
 
+
+  <style id="light-mode-brightness-and-chart-text-fix">
+    /* 明亮模式整體提亮：背景更白、卡片更清爽，文字仍保持深色高對比 */
+    html:not(.dark) body {
+      background-color: #f8fafc !important;
+      color: #0f172a !important;
+    }
+    html:not(.dark) main {
+      background-color: #f8fafc !important;
+    }
+    html:not(.dark) header {
+      background-color: #2563eb !important;
+      color: #ffffff !important;
+    }
+    html:not(.dark) header button[class*="bg-white/"] {
+      background-color: rgba(255, 255, 255, 0.16) !important;
+    }
+    html:not(.dark) .bg-white,
+    html:not(.dark) .bg-slate-50,
+    html:not(.dark) .bg-slate-100 {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+    }
+    html:not(.dark) .shadow-md {
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06) !important;
+    }
+    html:not(.dark) .border-slate-300,
+    html:not(.dark) .border-slate-200 {
+      border-color: #e2e8f0 !important;
+    }
+
+    /* 圓餅圖內文字不要過粗、不要黑成一團 */
+    .dashboard-pie-label {
+      fill: #334155 !important;
+      font-weight: 500 !important;
+      stroke: none !important;
+      text-shadow: none !important;
+      filter: none !important;
+      paint-order: normal !important;
+    }
+  </style>
+
 </head>
 <body class="bg-slate-200 dark:bg-darkbg text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen flex flex-col">
   
@@ -1565,7 +1607,7 @@
                 if (slicePercent === 1) {
                     return (React.createElement("g", { key: i },
                         React.createElement("circle", { cx: center, cy: center, r: radius, fill: slice.color, stroke: "white", strokeWidth: "2", className: "dark:stroke-darkcard" }),
-                        React.createElement("text", { x: center, y: center, fill: "#0f172a", fontSize: "16", fontWeight: "bold", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label" },
+                        React.createElement("text", { x: center, y: center, fill: "#334155", fontSize: "14", fontWeight: "500", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label" },
                             React.createElement("tspan", { x: center, dy: "-0.5em" }, slice.label),
                             React.createElement("tspan", { x: center, dy: "1.2em" },
                                 slice.value,
@@ -1583,12 +1625,10 @@
                 const labelY = center + Math.sin(2 * Math.PI * midPercent - Math.PI / 2) * labelRadius;
                 return (React.createElement("g", { key: i },
                     React.createElement("path", { d: `M ${center} ${center} L ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY} Z`, fill: slice.color, stroke: "white", strokeWidth: "1.5", className: "dark:stroke-darkcard" }),
-                    slicePercent > 0.08 && (React.createElement("text", { x: labelX, y: labelY, fill: "#0f172a", fontSize: "14", fontWeight: "bold", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label" },
-                        React.createElement("tspan", { x: labelX, dy: "-0.4em" }, slice.label),
-                        React.createElement("tspan", { x: labelX, dy: "1.3em" },
-                            slice.value,
-                            "\u4EF6"))),
-                    slicePercent > 0.04 && slicePercent <= 0.08 && (React.createElement("text", { x: labelX, y: labelY, fill: "#0f172a", fontSize: "14", fontWeight: "bold", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label" }, slice.value))));
+                    slicePercent > 0.08 && (React.createElement("text", { x: labelX, y: labelY, fill: "#334155", fontSize: "12", fontWeight: "500", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label" },
+                        slice.value,
+                        "\u4EF6")),
+                    slicePercent > 0.04 && slicePercent <= 0.08 && (React.createElement("text", { x: labelX, y: labelY, fill: "#334155", fontSize: "12", fontWeight: "500", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label" }, slice.value))));
             })));
         };
         // --- 初始資料 ---
@@ -1697,6 +1737,7 @@
             const [cloudRole, setCloudRole] = useState('local');
             const [cloudStatus, setCloudStatus] = useState('本地模式：資料只保存在目前瀏覽器。');
             const [cloudConfigForm, setCloudConfigForm] = useState({ url: '', anonKey: '' });
+            const [cloudConfigEditing, setCloudConfigEditing] = useState(false);
             const [loginEmail, setLoginEmail] = useState('');
             const [loginPassword, setLoginPassword] = useState('');
             const [authMode, setAuthMode] = useState('signin');
@@ -1871,8 +1912,10 @@
             useEffect(() => {
                 const initSupabase = async () => {
                     const cfg = getStoredSupabaseConfig();
+                    const usableCfg = isUsableSupabaseConfig(cfg);
                     setCloudConfigForm({ url: cfg.url || '', anonKey: cfg.anonKey || '' });
-                    if (!isUsableSupabaseConfig(cfg) || !window.supabase || !window.supabase.createClient) {
+                    setCloudConfigEditing(!usableCfg);
+                    if (!usableCfg || !window.supabase || !window.supabase.createClient) {
                         setCloudStatus('本地模式：尚未設定 Supabase，GitHub Pages 可顯示頁面，但多人權限/LOG 需完成 Supabase 設定。');
                         setIsLoading(false);
                         return;
@@ -2432,15 +2475,36 @@
                         )
                     ),
                     React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5' },
-                        React.createElement('h3', { className: 'text-lg font-extrabold mb-3' }, configured ? 'Supabase 連線設定（可修改）' : 'Supabase 連線設定'),
-                        React.createElement('p', { className: 'text-sm text-slate-600 dark:text-slate-300 mb-4' }, configured ? '如 Project URL 或 anon public key 貼錯，可在這裡直接修改後重新載入。' : '先建立 Supabase 專案並執行 supabase/schema.sql。臨時測試可在這裡貼入 URL 與 anon key；正式發布建議寫入 supabase-config.js。'),
-                        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-3' },
-                            React.createElement('input', { value: cloudConfigForm.url, onChange: e => setCloudConfigForm({ ...cloudConfigForm, url: e.target.value }), placeholder: 'https://xxxx.supabase.co', className: 'border rounded-lg px-3 py-2' }),
-                            React.createElement('input', { value: cloudConfigForm.anonKey, onChange: e => setCloudConfigForm({ ...cloudConfigForm, anonKey: e.target.value }), placeholder: 'Supabase anon public key', className: 'border rounded-lg px-3 py-2' })
+                        React.createElement('div', { className: 'flex flex-col md:flex-row md:items-start justify-between gap-3 mb-3' },
+                            React.createElement('div', null,
+                                React.createElement('h3', { className: 'text-lg font-extrabold mb-2' }, 'Supabase 連線設定'),
+                                React.createElement('p', { className: 'text-sm text-slate-600 dark:text-slate-300' }, configured ? '已完成設定；為避免誤改，Project URL 與 anon key 預設隱藏。只有 owner 可以點「修改」後變更。' : '先建立 Supabase 專案並執行 supabase/schema.sql。臨時測試可在這裡貼入 URL 與 anon key；正式發布建議寫入 supabase-config.js。')
+                            ),
+                            configured && React.createElement('div', { className: 'flex flex-wrap gap-2' },
+                                cloudRole === 'owner' && !cloudConfigEditing && React.createElement('button', { onClick: () => setCloudConfigEditing(true), className: `px-5 py-2 rounded-lg text-white font-bold ${currentTheme.color}` }, '修改'),
+                                cloudRole !== 'owner' && React.createElement('span', { className: 'px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 font-bold text-sm' }, '僅 owner 可修改')
+                            )
                         ),
-                        React.createElement('div', { className: 'flex flex-wrap gap-2 mt-4' },
-                            React.createElement('button', { onClick: saveSupabaseConfig, className: `px-5 py-2 rounded-lg text-white font-bold ${currentTheme.color}` }, '保存設定並重新載入'),
-                            configured && React.createElement('button', { onClick: () => { if (confirm('確定清除本瀏覽器保存的 Supabase 連線設定並重新載入？')) { localStorage.removeItem('maritime_supabase_config'); window.location.reload(); } }, className: 'admin-outline-button px-5 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-900' }, '清除本機 Supabase 設定')
+                        configured && !cloudConfigEditing && React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-3' },
+                            React.createElement('div', { className: 'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2' },
+                                React.createElement('div', { className: 'text-xs font-bold text-slate-500 mb-1' }, 'Project URL'),
+                                React.createElement('div', { className: 'font-bold text-slate-800 break-all' }, cloudConfigForm.url ? cloudConfigForm.url.replace(/^https:\/\//, '').replace(/\.supabase\.co.*$/, '.supabase.co') : '已設定')
+                            ),
+                            React.createElement('div', { className: 'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2' },
+                                React.createElement('div', { className: 'text-xs font-bold text-slate-500 mb-1' }, 'anon public key'),
+                                React.createElement('div', { className: 'font-bold text-slate-800' }, '已隱藏')
+                            )
+                        ),
+                        (!configured || cloudConfigEditing) && React.createElement(Fragment, null,
+                            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-3' },
+                                React.createElement('input', { value: cloudConfigForm.url, onChange: e => setCloudConfigForm({ ...cloudConfigForm, url: e.target.value }), placeholder: 'https://xxxx.supabase.co', className: 'border rounded-lg px-3 py-2 text-slate-900 bg-white' }),
+                                React.createElement('input', { value: cloudConfigForm.anonKey, onChange: e => setCloudConfigForm({ ...cloudConfigForm, anonKey: e.target.value }), placeholder: 'Supabase anon public key', className: 'border rounded-lg px-3 py-2 text-slate-900 bg-white' })
+                            ),
+                            React.createElement('div', { className: 'flex flex-wrap gap-2 mt-4' },
+                                React.createElement('button', { onClick: saveSupabaseConfig, className: `px-5 py-2 rounded-lg text-white font-bold ${currentTheme.color}` }, '保存設定並重新載入'),
+                                configured && cloudRole === 'owner' && React.createElement('button', { onClick: () => setCloudConfigEditing(false), className: 'admin-outline-button px-5 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-900' }, '取消'),
+                                configured && cloudRole === 'owner' && React.createElement('button', { onClick: () => { if (confirm('確定清除本瀏覽器保存的 Supabase 連線設定並重新載入？')) { localStorage.removeItem('maritime_supabase_config'); window.location.reload(); } }, className: 'admin-outline-button px-5 py-2 rounded-lg border border-slate-300 bg-white font-bold text-slate-900' }, '清除本機 Supabase 設定')
+                            )
                         )
                     ),
                     configured && !cloudSession && React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5 max-w-xl' },
