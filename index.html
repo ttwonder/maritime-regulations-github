@@ -2338,8 +2338,10 @@
                 if (!loginEmail || !loginPassword) { alert('請填入 Email 與密碼。'); return; }
                 setIsCloudBusy(true);
                 try {
-                    const fn = authMode === 'signup' ? cloudClient.auth.signUp : cloudClient.auth.signInWithPassword;
-                    const { error } = await fn({ email: loginEmail.trim(), password: loginPassword });
+                    const credentials = { email: loginEmail.trim(), password: loginPassword };
+                    const { error } = authMode === 'signup'
+                        ? await cloudClient.auth.signUp(credentials)
+                        : await cloudClient.auth.signInWithPassword(credentials);
                     if (error) throw error;
                     setCloudStatus(authMode === 'signup' ? '註冊完成；若 Supabase 開啟 Email 驗證，請先至信箱確認。' : '登入成功，正在載入雲端資料。');
                     setLoginPassword('');
