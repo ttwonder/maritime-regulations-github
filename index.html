@@ -2225,8 +2225,8 @@
             const fileInputRef = useRef(null);
             // 全局搜尋與篩選 (作用於清單)
             const [searchQuery, setSearchQuery] = useState('');
-            const [sortOrder, setSortOrder] = useState('newest'); // 'newest' | 'oldest'
-            const [statusListSorts, setStatusListSorts] = useState({ in_progress: 'id_asc', completed: 'id_asc', temp_na: 'id_asc' });
+            const [sortOrder, setSortOrder] = useState('id_desc'); // 'id_desc' | 'id_asc'
+            const [statusListSorts, setStatusListSorts] = useState({ in_progress: 'id_desc', completed: 'id_desc', temp_na: 'id_desc' });
             const [filters, setFilters] = useState({ categories: [], priority: [], department: [], region: [], shipType: [] });
             // Dashboard 專屬過濾器
             const [dashFilters, setDashFilters] = useState({ year: '', category: '', status: 'all_impacted' });
@@ -3183,13 +3183,11 @@
                         return false;
                     return true;
                 });
-                // 排序邏輯
+                // 排序邏輯：總清單/進行中/已完成/暫不適用/不適用均按案件編號排序
                 return result.sort((a, b) => {
-                    if (sortOrder === 'newest')
-                        return (b.createdAt || 0) - (a.createdAt || 0);
-                    if (sortOrder === 'oldest')
-                        return (a.createdAt || 0) - (b.createdAt || 0);
-                    return 0;
+                    const compareId = String(a.id || '').localeCompare(String(b.id || ''), 'zh-Hant', { numeric: true, sensitivity: 'base' });
+                    if (sortOrder === 'id_asc') return compareId;
+                    return -compareId;
                 });
             }, [tasks, activeTab, searchQuery, filters, sortOrder]);
             // --- Dashboard 統計邏輯 ---
@@ -3532,7 +3530,7 @@
                 };
                 const priorityRank = { '緊急': 1, '高': 2, '中': 3, '低': 4, '需要關注/資源': 5, '暫不適用定期複查': 6, '不適用': 7 };
                 const sortOptions = [
-                    ['id_asc', '編號 ↑'], ['id_desc', '編號 ↓'],
+                    ['id_desc', '編號 大→小'], ['id_asc', '編號 小→大'],
                     ['priority_asc', '優先級 高→低'], ['priority_desc', '優先級 低→高'],
                     ['effectiveDate_asc', '生效日 近→遠'], ['effectiveDate_desc', '生效日 遠→近'],
                     ['department_asc', '涉及部 A→Z'], ['department_desc', '涉及部 Z→A'],
@@ -3854,8 +3852,8 @@
                                     React.createElement("span", { className: "text-slate-500 dark:text-slate-400 mr-2 text-sm font-bold" },
                                         React.createElement(IconSortDesc, { size: 18 })),
                                     React.createElement("select", { value: sortOrder, onChange: (e) => setSortOrder(e.target.value), className: `pl-3 pr-10 py-2.5 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-lg text-sm font-bold focus:outline-none transition-colors appearance-none cursor-pointer ${currentTheme.ring} text-slate-800 dark:text-slate-100` },
-                                        React.createElement("option", { value: "newest" }, "\u6700\u65B0\u5230\u6700\u820A"),
-                                        React.createElement("option", { value: "oldest" }, "\u6700\u820A\u5230\u6700\u65B0")),
+                                        React.createElement("option", { value: "id_desc" }, "編號 大→小"),
+                                        React.createElement("option", { value: "id_asc" }, "編號 小→大")),
                                     React.createElement(IconChevronDown, { size: 16, className: `absolute right-3 pointer-events-none text-slate-500 dark:text-slate-400` })),
                                 React.createElement("div", { className: "relative flex-1 xl:w-72" },
                                     React.createElement("input", { type: "text", placeholder: "\u95DC\u9375\u8A5E\u641C\u7D22 (\u6A19\u984C, \u5167\u5BB9...)", value: searchQuery, onChange: (e) => setSearchQuery(e.target.value), className: `w-full pl-10 pr-4 py-2.5 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-lg text-sm focus:outline-none ${currentTheme.ring} focus:border-transparent transition-colors text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500` }),
