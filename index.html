@@ -3258,6 +3258,27 @@
                 await persistCloudStateNow(serializableTasks, { entityId: 'tasks', summary: `手動同步本機資料到雲端（${serializableTasks.length} 筆）` });
                 await loadAuditLogs();
             };
+            const handleManualSyncLatest = async () => {
+                if (!cloudClient) { alert('尚未設定 Supabase，無法同步雲端最新內容。'); return; }
+                setIsCloudBusy(true);
+                try {
+                    if (cloudSession) await loadCloudState(cloudClient, cloudSession);
+                    else await loadPublicCloudState(cloudClient);
+                    alert('已同步最新雲端內容。');
+                } catch (err) {
+                    alert('同步最新失敗：' + (err.message || JSON.stringify(err)));
+                } finally { setIsCloudBusy(false); }
+            };
+            const handleManualSaveChanges = async () => {
+                if (!cloudClient) { alert('尚未設定 Supabase，修改只會保存在本瀏覽器。'); return; }
+                if (!getActorContext()) {
+                    openOperatorIdentityModal('保存修改', () => handleManualSaveChanges());
+                    return;
+                }
+                const serializableTasks = tasks.map(t => ({ ...t, attachments: (t.attachments || []).map(a => ({ name: a.name, type: a.type })) }));
+                await persistCloudStateNow(serializableTasks, { entityId: 'tasks', summary: `手動保存修改到雲端（${serializableTasks.length} 筆）` });
+                alert('已保存修改並同步到雲端。');
+            };
             const upsertMember = async (email, role, active = true) => {
                 if (!cloudClient || !canManageSupabaseMembers()) { alert('只有 Owner 可以維護 Owner/管理員名單。'); return; }
                 const cleanEmail = normalizeLoginIdentifier(email);
@@ -3764,6 +3785,12 @@
                                     " ",
                                     th.name)))))),
                             React.createElement("div", { className: "w-px h-6 bg-white/30 mx-1" }),
+                            React.createElement("button", { onClick: handleManualSyncLatest, disabled: isCloudBusy, className: "flex items-center gap-1.5 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-bold transition-colors disabled:opacity-60" },
+                                React.createElement(IconRotateCcw, { size: 18 }),
+                                " 同步最新"),
+                            React.createElement("button", { onClick: handleManualSaveChanges, disabled: isCloudBusy, className: "flex items-center gap-1.5 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-bold transition-colors disabled:opacity-60" },
+                                React.createElement(IconCheckCircle, { size: 18 }),
+                                " 保存修改"),
                             React.createElement("button", { onClick: handleOpenNewTask, className: "flex items-center gap-1.5 bg-white text-slate-900 hover:bg-slate-100 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-md" },
                                 React.createElement(IconPlus, { size: 18 }),
                                 " \u65B0\u589E"),
