@@ -1290,6 +1290,162 @@
     }
   </style>
 
+
+
+  <style id="final-unified-dark-mode-and-pie-fix">
+    /* ===== 最終統一色彩層：放在 head 最後，覆蓋前面零散規則，避免暗黑模式黑字/白字污染 ===== */
+    html.dark body,
+    html.dark main,
+    html.dark .fade-in-up {
+      background-color: #0f172a !important;
+      color: #e5e7eb !important;
+    }
+
+    html.dark .bg-white,
+    html.dark .bg-slate-50,
+    html.dark .bg-slate-100,
+    html.dark .dark\:bg-darkcard,
+    html.dark .dark\:bg-slate-800,
+    html.dark .dark\:bg-slate-900 {
+      background-color: #1e293b !important;
+      color: #e5e7eb !important;
+    }
+
+    html.dark .bg-slate-200,
+    html.dark thead tr,
+    html.dark .status-list-section > div:first-child {
+      background-color: #273449 !important;
+      color: #f8fafc !important;
+    }
+
+    html.dark .text-slate-900,
+    html.dark .text-slate-800,
+    html.dark .text-slate-700,
+    html.dark .text-gray-900,
+    html.dark .text-gray-800,
+    html.dark .text-gray-700,
+    html.dark [class*="dark:text-slate-50"],
+    html.dark [class*="dark:text-slate-100"],
+    html.dark [class*="dark:text-slate-200"] {
+      color: #f8fafc !important;
+      -webkit-text-fill-color: #f8fafc !important;
+    }
+
+    html.dark .text-slate-600,
+    html.dark .text-slate-500,
+    html.dark .text-slate-400,
+    html.dark .text-gray-600,
+    html.dark .text-gray-500,
+    html.dark .text-gray-400,
+    html.dark [class*="dark:text-slate-300"],
+    html.dark [class*="dark:text-slate-400"] {
+      color: #cbd5e1 !important;
+      -webkit-text-fill-color: #cbd5e1 !important;
+    }
+
+    html.dark input,
+    html.dark select,
+    html.dark textarea,
+    html.dark [contenteditable="true"],
+    html.dark [contenteditable=""] {
+      background-color: #111827 !important;
+      color: #f8fafc !important;
+      -webkit-text-fill-color: #f8fafc !important;
+      border-color: #475569 !important;
+    }
+
+    html.dark input::placeholder,
+    html.dark textarea::placeholder,
+    html.dark [data-placeholder]:empty:before {
+      color: #94a3b8 !important;
+      -webkit-text-fill-color: #94a3b8 !important;
+    }
+
+    html.dark table,
+    html.dark th,
+    html.dark td,
+    html.dark label,
+    html.dark p,
+    html.dark h1,
+    html.dark h2,
+    html.dark h3,
+    html.dark h4 {
+      color: inherit;
+    }
+
+    html.dark tbody tr,
+    html.dark .status-list-row {
+      color: #e5e7eb !important;
+    }
+
+    /* 優先級色塊：暗黑模式用暗底 + 淺字；明亮模式用淡底 + 深字，不再互相污染 */
+    html.dark .priority-filter-button,
+    html.dark .priority-filter-button *,
+    html.dark .priority-filter-button span,
+    html.dark [class*="bg-red-100"],
+    html.dark [class*="bg-orange-100"],
+    html.dark [class*="bg-amber-100"],
+    html.dark [class*="bg-emerald-100"],
+    html.dark [class*="bg-purple-100"],
+    html.dark [class*="bg-blue-100"] {
+      color: #f8fafc !important;
+      -webkit-text-fill-color: #f8fafc !important;
+    }
+
+    html.dark .priority-filter-button { background-color: #263244 !important; border-color: #64748b !important; opacity: 1 !important; }
+    html.dark .priority-filter-button[class*="border-red"] { background-color: rgba(127, 29, 29, 0.55) !important; border-color: #ef4444 !important; }
+    html.dark .priority-filter-button[class*="border-orange"] { background-color: rgba(124, 45, 18, 0.55) !important; border-color: #fb923c !important; }
+    html.dark .priority-filter-button[class*="border-amber"] { background-color: rgba(120, 53, 15, 0.55) !important; border-color: #fbbf24 !important; }
+    html.dark .priority-filter-button[class*="border-emerald"] { background-color: rgba(6, 78, 59, 0.55) !important; border-color: #34d399 !important; }
+    html.dark .priority-filter-button[class*="border-purple"] { background-color: rgba(88, 28, 135, 0.55) !important; border-color: #c084fc !important; }
+    html.dark .priority-filter-button[class*="border-blue"] { background-color: rgba(30, 58, 138, 0.55) !important; border-color: #60a5fa !important; }
+
+    /* 管理中心、權限表、LOG 表格暗黑模式 */
+    html.dark .admin-outline-button,
+    html.dark .admin-outline-button * {
+      background-color: #111827 !important;
+      color: #f8fafc !important;
+      -webkit-text-fill-color: #f8fafc !important;
+      border-color: #64748b !important;
+    }
+
+    html.dark .admin-card,
+    html.dark .log-card,
+    html.dark .member-card {
+      background-color: #1e293b !important;
+      color: #e5e7eb !important;
+      border-color: #475569 !important;
+    }
+
+    /* SVG 圓餅圖文字：禁止描邊/陰影，用細字；避免看起來一坨 */
+    .dashboard-pie-label,
+    .dashboard-pie-label * {
+      stroke: none !important;
+      paint-order: fill !important;
+      text-shadow: none !important;
+      filter: none !important;
+      font-weight: 300 !important;
+      letter-spacing: 0 !important;
+    }
+
+
+
+    /* 所有優先級小標籤在暗黑模式一律改成暗底，避免淺底白字 */
+    html.dark [class*="bg-red-100"] { background-color: rgba(127, 29, 29, 0.62) !important; color: #fee2e2 !important; -webkit-text-fill-color: #fee2e2 !important; border-color: #ef4444 !important; }
+    html.dark [class*="bg-orange-100"] { background-color: rgba(124, 45, 18, 0.62) !important; color: #ffedd5 !important; -webkit-text-fill-color: #ffedd5 !important; border-color: #fb923c !important; }
+    html.dark [class*="bg-amber-100"] { background-color: rgba(120, 53, 15, 0.62) !important; color: #fef3c7 !important; -webkit-text-fill-color: #fef3c7 !important; border-color: #fbbf24 !important; }
+    html.dark [class*="bg-emerald-100"] { background-color: rgba(6, 78, 59, 0.62) !important; color: #d1fae5 !important; -webkit-text-fill-color: #d1fae5 !important; border-color: #34d399 !important; }
+    html.dark [class*="bg-purple-100"] { background-color: rgba(88, 28, 135, 0.62) !important; color: #f3e8ff !important; -webkit-text-fill-color: #f3e8ff !important; border-color: #c084fc !important; }
+    html.dark [class*="bg-blue-100"] { background-color: rgba(30, 58, 138, 0.62) !important; color: #dbeafe !important; -webkit-text-fill-color: #dbeafe !important; border-color: #60a5fa !important; }
+
+    html.dark .dashboard-pie-label,
+    html.dark .dashboard-pie-label * {
+      fill: #f8fafc !important;
+      color: #f8fafc !important;
+      -webkit-text-fill-color: #f8fafc !important;
+    }
+  </style>
+
 </head>
 <body class="bg-slate-200 dark:bg-darkbg text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen flex flex-col">
   
@@ -1650,24 +1806,36 @@
         const SvgPieChart = ({ data, size = 280, isDarkMode = false }) => {
             let cumulativePercent = 0;
             const center = size / 2;
-            const radius = size / 2.2;
+            const radius = size / 2.24;
             const total = data.reduce((acc, d) => acc + d.value, 0);
             if (total === 0)
-                return React.createElement("div", { className: "text-slate-400 text-sm m-auto py-10" }, "\u7121\u8CC7\u6599");
-            const pieLabelColor = isDarkMode ? '#f8fafc' : '#334155';
-            const pieLabelStyle = { fontFamily: '\'Microsoft JhengHei Light\', \'Microsoft JhengHei\', sans-serif', letterSpacing: '-0.02em' };
-            return (React.createElement("svg", { width: size, height: size, viewBox: `0 0 ${size} ${size}`, className: "drop-shadow-md" }, data.map((slice, i) => {
+                return React.createElement("div", { className: "text-slate-400 text-sm m-auto py-10" }, "無資料");
+            const pieLabelColor = isDarkMode ? '#f8fafc' : '#0f172a';
+            const pieLabelStyle = { fontFamily: 'Segoe UI, Microsoft JhengHei UI Light, Microsoft JhengHei, sans-serif', fontWeight: 300, letterSpacing: '0px', stroke: 'none', strokeWidth: 0, paintOrder: 'fill', textShadow: 'none' };
+            const splitPieLabel = (label) => {
+                const raw = String(label || '');
+                if (raw.includes('/')) return raw.split('/').filter(Boolean);
+                if (raw.length <= 4) return [raw];
+                if (raw.length <= 8) return [raw.slice(0, 4), raw.slice(4)];
+                return [raw.slice(0, 4), raw.slice(4, 8) + (raw.length > 8 ? '…' : '')];
+            };
+            const renderPieText = (slice, x, y, compact = false) => {
+                const lines = compact ? [] : splitPieLabel(slice.label);
+                const fontSize = compact ? 8 : (lines.length > 1 ? 7.2 : 8.6);
+                const startDy = lines.length > 1 ? '-0.75em' : '-0.35em';
+                return React.createElement("text", { x, y, fill: pieLabelColor, stroke: "none", strokeWidth: "0", fontSize: String(fontSize), fontWeight: "300", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label", style: pieLabelStyle },
+                    ...lines.map((line, idx) => React.createElement("tspan", { key: idx, x, dy: idx === 0 ? startDy : "1.05em" }, line)),
+                    React.createElement("tspan", { x, dy: lines.length ? "1.1em" : "0" }, compact ? String(slice.value) : `${slice.value}件`)
+                );
+            };
+            return (React.createElement("svg", { width: size, height: size, viewBox: `0 0 ${size} ${size}`, className: "drop-shadow-sm" }, data.map((slice, i) => {
                 const slicePercent = slice.value / total;
-                if (slicePercent === 0)
-                    return null;
+                if (slicePercent === 0) return null;
                 if (slicePercent === 1) {
                     return (React.createElement("g", { key: i },
-                        React.createElement("circle", { cx: center, cy: center, r: radius, fill: slice.color, stroke: "white", strokeWidth: "2", className: "dark:stroke-darkcard" }),
-                        React.createElement("text", { x: center, y: center, fill: pieLabelColor, fontSize: "12", fontWeight: "200", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label", style: pieLabelStyle },
-                            React.createElement("tspan", { x: center, dy: "-0.5em" }, slice.label),
-                            React.createElement("tspan", { x: center, dy: "1.2em" },
-                                slice.value,
-                                "\u4EF6"))));
+                        React.createElement("circle", { cx: center, cy: center, r: radius, fill: slice.color, stroke: "none", strokeWidth: "0" }),
+                        renderPieText(slice, center, center)
+                    ));
                 }
                 const startX = center + Math.cos(2 * Math.PI * cumulativePercent - Math.PI / 2) * radius;
                 const startY = center + Math.sin(2 * Math.PI * cumulativePercent - Math.PI / 2) * radius;
@@ -1676,17 +1844,14 @@
                 const endY = center + Math.sin(2 * Math.PI * cumulativePercent - Math.PI / 2) * radius;
                 const largeArcFlag = slicePercent > 0.5 ? 1 : 0;
                 const midPercent = cumulativePercent - slicePercent / 2;
-                const labelRadius = radius * 0.65;
+                const labelRadius = radius * 0.63;
                 const labelX = center + Math.cos(2 * Math.PI * midPercent - Math.PI / 2) * labelRadius;
                 const labelY = center + Math.sin(2 * Math.PI * midPercent - Math.PI / 2) * labelRadius;
                 return (React.createElement("g", { key: i },
-                    React.createElement("path", { d: `M ${center} ${center} L ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY} Z`, fill: slice.color, stroke: "white", strokeWidth: "1.5", className: "dark:stroke-darkcard" }),
-                    slicePercent > 0.08 && (React.createElement("text", { x: labelX, y: labelY, fill: pieLabelColor, fontSize: slice.label.length > 5 ? "9" : "10", fontWeight: "200", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label", style: pieLabelStyle },
-                        React.createElement("tspan", { x: labelX, dy: "-0.35em" }, slice.label),
-                        React.createElement("tspan", { x: labelX, dy: "1.15em" },
-                            slice.value,
-                            "\u4EF6"))),
-                    slicePercent > 0.04 && slicePercent <= 0.08 && (React.createElement("text", { x: labelX, y: labelY, fill: pieLabelColor, fontSize: "10", fontWeight: "200", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label", style: pieLabelStyle }, slice.value))));
+                    React.createElement("path", { d: `M ${center} ${center} L ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY} Z`, fill: slice.color, stroke: "none", strokeWidth: "0" }),
+                    slicePercent > 0.075 && renderPieText(slice, labelX, labelY, false),
+                    slicePercent > 0.04 && slicePercent <= 0.075 && renderPieText(slice, labelX, labelY, true)
+                ));
             })));
         };
         // --- 初始資料 ---
@@ -1751,6 +1916,7 @@
                                 departments: [],
                                 applicableRegions: [],
                                 applicableShipTypes: [],
+                                requiresMoc: false,
                                 status: 'in_progress',
                                 createdAt: Date.now(),
                                 ...t,
@@ -1758,7 +1924,8 @@
                                 priority: Array.isArray(t.priority) ? t.priority : (t.priority ? [t.priority] : []),
                                 departments: Array.isArray(t.departments) ? t.departments : (t.departments ? [t.departments] : []),
                                 applicableRegions: Array.isArray(t.applicableRegions) ? t.applicableRegions : (t.applicableRegions ? [t.applicableRegions] : []),
-                                applicableShipTypes: Array.isArray(t.applicableShipTypes) ? t.applicableShipTypes : (t.applicableShipTypes ? [t.applicableShipTypes] : [])
+                                applicableShipTypes: Array.isArray(t.applicableShipTypes) ? t.applicableShipTypes : (t.applicableShipTypes ? [t.applicableShipTypes] : []),
+                                requiresMoc: !!t.requiresMoc
                             }));
                         }
                     }
@@ -1802,11 +1969,60 @@
             const [members, setMembers] = useState([]);
             const [logs, setLogs] = useState([]);
             const [logSearch, setLogSearch] = useState('');
+            const [logPage, setLogPage] = useState(1);
+            const LOG_PAGE_SIZE = 30;
+            const [uiLang, setUiLang] = useState(() => localStorage.getItem('maritime_ui_lang') || 'zh');
             const [newMemberEmail, setNewMemberEmail] = useState('');
             const [newMemberRole, setNewMemberRole] = useState('viewer');
             const [isCloudBusy, setIsCloudBusy] = useState(false);
             const [isLoading, setIsLoading] = useState(false);
             const cloudRef = useRef({ client: null, session: null, role: 'local', member: null, saveTimer: null, pendingSave: null });
+            const translatedTextNodesRef = useRef(new Map());
+            const UI_TRANSLATIONS = {
+                '統計看板': 'Dashboard', '狀態清單': 'Status List', '狀態': 'Status', '緊急': 'Urgent', '高': 'High', '中': 'Medium', '低': 'Low', '需要關注/資源': 'Needs Attention/Resources', '暫不適用定期複查': 'Deferred Review', '總清單': 'All Items', '進行中': 'In Progress', '已完成': 'Completed', '暫不適用': 'Deferred', '不適用': 'N/A', '管理中心': 'Admin Center',
+                '主題': 'Theme', '新增': 'Add', '匯入': 'Import', 'Excel匯出': 'Export Excel', 'PDF列印': 'Print PDF', '登入/管理': 'Login/Admin', '擁有者': 'Owner',
+                '最新到最舊': 'Newest First', '最舊到最舊': 'Oldest First', '最舊到最新': 'Oldest First', '關鍵詞搜索 (標題, 內容...)': 'Keyword search (title, content...)',
+                '優先級分佈 (多選):': 'Priority Filter (multi-select):', '其他篩選:': 'Other Filters:', '涉及分類': 'Categories', '涉及部門': 'Departments', '適用地區': 'Regions', '適用船型': 'Ship Types',
+                '海事法規、規定辨識和執行追蹤系統': 'Maritime Regulations Identification and Execution Tracking System',
+                '編號 / 優先級 / 來源': 'ID / Priority / Source', '法規/外來信息項目與簡要要求 (含分類)': 'Regulation / External Information and Requirements', '時程 / 負責人 / 部門': 'Schedule / PIC / Dept.', '現狀 / 執行進度與計劃 / 最終結果': 'Status / Progress / Final Result', '操作': 'Actions',
+                '預計完成日': 'Target Date', '實際完成日': 'Actual Completion Date', '負責人': 'PIC', '現狀': 'Current Status', '執行進度/計劃': 'Progress / Plan', '最終執行結果': 'Final Result', '標記完成': 'Mark Complete', '恢復進行中': 'Reopen', '展開詳情': 'Expand', '收合詳情': 'Collapse',
+                '生效日期': 'Effective Date', '適用地區範圍 (多選)': 'Applicable Regions', '適用船型 (多選)': 'Applicable Ship Types', '需要 MOC': 'MOC Required', '不需要 MOC': 'MOC Not Required', '來源出處 (通函/決議號等)': 'Source Reference', '內部備註': 'Internal Notes', '具體條款 / 法規原文': 'Original Clause / Text', '參考附件': 'Attachments', '上傳文件': 'Upload File', '目前無附件': 'No attachments',
+                '管理中心｜權限與修改 LOG': 'Admin Center | Permissions & Audit Log', 'Supabase 連線設定': 'Supabase Connection', '修改': 'Edit', '取消': 'Cancel', '保存設定並重新載入': 'Save and Reload', '清除本機 Supabase 設定': 'Clear Local Supabase Config', '僅 owner 可修改': 'Owner only', '雲端資料操作': 'Cloud Data', '重新載入雲端資料': 'Reload Cloud Data', '手動同步本機資料到雲端': 'Sync Local Data to Cloud', '刷新 LOG': 'Refresh Log', '權限名單': 'Members', '新增/更新': 'Add/Update', '可查詢修改 LOG': 'Searchable Audit Log', '查詢': 'Search', '時間': 'Time', '使用者': 'User', '動作': 'Action', '對象': 'Target', '摘要': 'Summary', '上一頁': 'Prev', '下一頁': 'Next',
+                '新增法規、規定項目': 'Add Regulation Item', '法規/外來信息項目標題': 'Title', '簡要要求': 'Requirement Summary', '優先級 (多選)': 'Priority', '來源': 'Source', '建立新項目': 'Create Item', '尚未選擇任何附件': 'No file selected', '輸入姓名': 'Enter name', '結案或最終執行結果...': 'Final result or closure notes...', '全部有影響項目': 'All Impacted Items', '僅進行中': 'In Progress Only', '僅已完成': 'Completed Only', '所有生效年份': 'All Effective Years', '所有涉及分類': 'All Categories', '看板篩選': 'Dashboard Filters', '涉及分類分析': 'Category Analysis', '優先級分佈': 'Priority Distribution', '部門未完成案件': 'Open Items by Department', '點擊篩選': 'Click to filter', '時間線 (即將到期)': 'Timeline (Upcoming)', '點擊查看': 'Click to view', '已結案': 'Closed', '需關注': 'Needs Attention', '總數': 'Total'
+            };
+            const applyUiTranslation = () => {
+                const rootEl = document.getElementById('root');
+                if (!rootEl) return;
+                if (uiLang === 'zh') {
+                    translatedTextNodesRef.current.forEach((original, node) => { if (node && node.nodeValue !== undefined) node.nodeValue = original; });
+                    translatedTextNodesRef.current.clear();
+                    document.documentElement.lang = 'zh-TW';
+                    return;
+                }
+                document.documentElement.lang = 'en';
+                const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT);
+                const nodes = [];
+                while (walker.nextNode()) nodes.push(walker.currentNode);
+                nodes.forEach(node => {
+                    const original = translatedTextNodesRef.current.get(node) || node.nodeValue;
+                    const trimmed = String(original || '').trim();
+                    if (!trimmed) return;
+                    const parentEl = node.parentElement;
+                    if (parentEl && parentEl.closest && parentEl.closest('[data-no-translate="true"]')) return;
+                    let translated = UI_TRANSLATIONS[trimmed] || original;
+                    if (!UI_TRANSLATIONS[trimmed]) {
+                        Object.entries(UI_TRANSLATIONS)
+                            .filter(([zh]) => zh.length >= 4)
+                            .sort((a, b) => b[0].length - a[0].length)
+                            .forEach(([zh, en]) => { translated = String(translated).replaceAll(zh, en); });
+                    }
+                    if (translated !== original) {
+                        if (!translatedTextNodesRef.current.has(node)) translatedTextNodesRef.current.set(node, original);
+                        node.nodeValue = String(original).replace(trimmed, translated.trim());
+                    }
+                });
+            };
+            useEffect(() => { localStorage.setItem('maritime_ui_lang', uiLang); setTimeout(applyUiTranslation, 0); }, [uiLang, activeTab, tasks, logs, members, newTaskModalOpen, modalOpen, filters, dashFilters, logPage, isDark]);
 
             const normalizeTaskList = (list) => Array.isArray(list) ? list.map(t => ({
                 attachments: [],
@@ -1815,6 +2031,7 @@
                 departments: [],
                 applicableRegions: [],
                 applicableShipTypes: [],
+                requiresMoc: false,
                 status: 'in_progress',
                 createdAt: Date.now(),
                 ...t,
@@ -1822,7 +2039,8 @@
                 priority: Array.isArray(t.priority) ? t.priority : (t.priority ? [t.priority] : []),
                 departments: Array.isArray(t.departments) ? t.departments : (t.departments ? [t.departments] : []),
                 applicableRegions: Array.isArray(t.applicableRegions) ? t.applicableRegions : (t.applicableRegions ? [t.applicableRegions] : []),
-                applicableShipTypes: Array.isArray(t.applicableShipTypes) ? t.applicableShipTypes : (t.applicableShipTypes ? [t.applicableShipTypes] : [])
+                applicableShipTypes: Array.isArray(t.applicableShipTypes) ? t.applicableShipTypes : (t.applicableShipTypes ? [t.applicableShipTypes] : []),
+                                requiresMoc: !!t.requiresMoc
             })) : [];
 
             const isPlaceholderSupabaseConfig = (cfg) => !cfg || !cfg.url || !cfg.anonKey || String(cfg.url).includes('YOUR_') || String(cfg.anonKey).includes('YOUR_');
@@ -1852,17 +2070,37 @@
 
             const summarizeTaskChange = (prevTasks, nextTasks) => {
                 if (!Array.isArray(prevTasks) || !Array.isArray(nextTasks)) return { entityId: 'tasks', summary: '儲存法規清單' };
+                const shortText = (value, max = 42) => {
+                    const text = Array.isArray(value) ? value.join('、') : stripHtmlForText(value == null ? '' : String(value));
+                    return text.length > max ? text.slice(0, max) + '…' : text;
+                };
+                const fieldLabels = {
+                    status: '狀態', currentStatus: '現狀', progress: '執行進度/計劃', finalResult: '最終結果',
+                    title: '標題', description: '簡要要求', priority: '優先級', source: '來源', departments: '涉及部門',
+                    assignee: '負責人', dueDate: '預計完成日', completeDate: '實際完成日', effectiveDate: '生效日',
+                    applicableRegions: '適用地區', applicableShipTypes: '適用船型', requiresMoc: 'MOC', remarks: '備註', sourceReference: '來源出處'
+                };
                 if (nextTasks.length > prevTasks.length) {
                     const added = nextTasks.find(n => !prevTasks.some(p => p.id === n.id));
-                    return { entityId: (added && added.id) || 'tasks', summary: `新增項目 ${(added && stripHtmlForText(added.title)) || ''}`.trim() };
+                    return { entityId: (added && added.id) || 'tasks', summary: `新增項目 ${(added && added.id) || ''}「${(added && shortText(added.title)) || ''}」`.trim() };
                 }
-                if (nextTasks.length < prevTasks.length) return { entityId: 'tasks', summary: `清單筆數由 ${prevTasks.length} 變更為 ${nextTasks.length}` };
+                if (nextTasks.length < prevTasks.length) {
+                    const removed = prevTasks.find(p => !nextTasks.some(n => n.id === p.id));
+                    return { entityId: (removed && removed.id) || 'tasks', summary: removed ? `刪除項目 ${removed.id}「${shortText(removed.title)}」` : `清單筆數由 ${prevTasks.length} 變更為 ${nextTasks.length}` };
+                }
                 for (const n of nextTasks) {
                     const oldTask = prevTasks.find(p => p.id === n.id);
                     if (!oldTask) continue;
                     if (JSON.stringify(oldTask) !== JSON.stringify(n)) {
                         const changedFields = Object.keys(n).filter(k => JSON.stringify(oldTask[k]) !== JSON.stringify(n[k]));
-                        return { entityId: n.id, summary: `修改 ${n.id}：${changedFields.slice(0, 5).join('、') || '內容'}` };
+                        const preferred = ['status','currentStatus','progress','finalResult','title','description','priority','requiresMoc','applicableRegions','applicableShipTypes','source','departments','assignee','dueDate','effectiveDate'];
+                        const ordered = [...preferred.filter(k => changedFields.includes(k)), ...changedFields.filter(k => !preferred.includes(k))];
+                        const details = ordered.slice(0, 4).map(k => {
+                            const label = fieldLabels[k] || k;
+                            if (k === 'requiresMoc') return `${label}：${n[k] ? '需要' : '不需要'}`;
+                            return `${label}：${shortText(oldTask[k], 20) || '空'} → ${shortText(n[k], 32) || '空'}`;
+                        }).join('；');
+                        return { entityId: n.id, summary: `修改項目 ${n.id}「${shortText(n.title, 24)}」：${details || '內容變更'}` };
                     }
                 }
                 return { entityId: 'tasks', summary: '儲存法規清單' };
@@ -1910,12 +2148,13 @@
 
             const loadAuditLogs = async (clientArg = cloudRef.current.client) => {
                 if (!clientArg || !cloudRef.current.session) return;
-                let query = clientArg.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(200);
+                let query = clientArg.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(1000);
                 const q = logSearch.trim().replace(/[%,]/g, '');
                 if (q) query = query.or(`actor_email.ilike.%${q}%,action.ilike.%${q}%,summary.ilike.%${q}%,entity_id.ilike.%${q}%`);
                 const { data, error } = await query;
                 if (error) { console.error('Load logs error:', error); setCloudStatus('讀取 LOG 失敗：' + error.message); return; }
                 setLogs(data || []);
+                setLogPage(1);
             };
 
             const loadMembers = async (clientArg = cloudRef.current.client) => {
@@ -2215,6 +2454,7 @@
                     effectiveDate: '',
                     applicableRegions: [],
                     applicableShipTypes: [],
+                    requiresMoc: false,
                     originalText: '',
                     sourceReference: '',
                     remarks: '',
@@ -2258,6 +2498,7 @@
                         '最終執行結果': stripHtmlForText(t.finalResult),
                         '適用地區': (t.applicableRegions || []).join(','),
                         '適用船型': (t.applicableShipTypes || []).join(','),
+                        'MOC': t.requiresMoc ? '需要' : '不需要',
                         '來源出處': stripHtmlForText(t.sourceReference),
                         '備註': stripHtmlForText(t.remarks),
                         '法規原文': stripHtmlForText(t.originalText),
@@ -2339,6 +2580,7 @@
                                 finalResult: row['最終執行結果'] ? String(row['最終執行結果']) : '',
                                 applicableRegions: safeSplit(row['適用地區']),
                                 applicableShipTypes: safeSplit(row['適用船型']),
+                                requiresMoc: ['需要','yes','true','y','1'].includes(String(row['MOC'] || '').trim().toLowerCase()),
                                 sourceReference: row['來源出處'] ? String(row['來源出處']) : '',
                                 remarks: row['備註'] ? String(row['備註']) : '',
                                 originalText: row['法規原文'] ? String(row['法規原文']) : '',
@@ -2517,6 +2759,9 @@
             };
             const renderAdminPage = () => {
                 const configured = !!cloudClient;
+                const logTotalPages = Math.max(1, Math.ceil(logs.length / LOG_PAGE_SIZE));
+                const safeLogPage = Math.min(Math.max(logPage, 1), logTotalPages);
+                const pagedLogs = logs.slice((safeLogPage - 1) * LOG_PAGE_SIZE, safeLogPage * LOG_PAGE_SIZE);
                 return React.createElement('div', { className: 'fade-in-up flex flex-col gap-4' },
                     React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5' },
                         React.createElement('div', { className: 'flex flex-col md:flex-row md:items-start justify-between gap-4' },
@@ -2618,13 +2863,26 @@
                             React.createElement('div', { className: 'overflow-x-auto' },
                                 React.createElement('table', { className: 'w-full text-xs border-collapse min-w-[900px]' },
                                     React.createElement('thead', null, React.createElement('tr', { className: 'bg-slate-100' }, ['時間','使用者','動作','對象','摘要'].map(h => React.createElement('th', { key: h, className: 'text-left p-2 border' }, h)))),
-                                    React.createElement('tbody', null, logs.length ? logs.map(l => React.createElement('tr', { key: l.id },
+                                    React.createElement('tbody', null, logs.length ? pagedLogs.map(l => React.createElement('tr', { key: l.id },
                                         React.createElement('td', { className: 'p-2 border whitespace-nowrap' }, new Date(l.created_at).toLocaleString()),
                                         React.createElement('td', { className: 'p-2 border' }, displayIdentity(l.actor_email) || ''),
                                         React.createElement('td', { className: 'p-2 border font-bold' }, l.action),
                                         React.createElement('td', { className: 'p-2 border' }, `${l.entity_type || ''}/${l.entity_id || ''}`),
                                         React.createElement('td', { className: 'p-2 border' }, l.summary || '')
                                     )) : React.createElement('tr', null, React.createElement('td', { colSpan: '5', className: 'p-6 text-center text-slate-500 border' }, '目前沒有 LOG 或查無結果')))
+                                )
+                            ),
+                            logs.length > 0 && React.createElement('div', { className: 'flex flex-col md:flex-row md:items-center justify-between gap-3 mt-4 text-sm' },
+                                React.createElement('div', { className: 'text-slate-600 dark:text-slate-300 font-bold' }, `共 ${logs.length} 條 LOG｜每頁 ${LOG_PAGE_SIZE} 條｜第 ${safeLogPage} / ${logTotalPages} 頁`),
+                                React.createElement('div', { className: 'flex items-center gap-2' },
+                                    React.createElement('button', { disabled: safeLogPage <= 1, onClick: () => setLogPage(p => Math.max(1, p - 1)), className: 'admin-outline-button px-3 py-1.5 rounded border bg-white text-slate-900 font-bold disabled:opacity-40' }, '上一頁'),
+                                    Array.from({ length: Math.min(logTotalPages, 7) }, (_, idx) => {
+                                        const start = Math.max(1, Math.min(safeLogPage - 3, logTotalPages - 6));
+                                        const pageNo = start + idx;
+                                        if (pageNo > logTotalPages) return null;
+                                        return React.createElement('button', { key: pageNo, onClick: () => setLogPage(pageNo), className: `px-3 py-1.5 rounded border font-bold ${pageNo === safeLogPage ? currentTheme.color + ' text-white border-transparent' : 'admin-outline-button bg-white text-slate-900 border-slate-300'}` }, pageNo);
+                                    }),
+                                    React.createElement('button', { disabled: safeLogPage >= logTotalPages, onClick: () => setLogPage(p => Math.min(logTotalPages, p + 1)), className: 'admin-outline-button px-3 py-1.5 rounded border bg-white text-slate-900 font-bold disabled:opacity-40' }, '下一頁')
                                 )
                             )
                         )
@@ -2857,6 +3115,7 @@
                             React.createElement("div", { className: "text-xs opacity-80 mt-1 font-medium" }, "Maritime Regulations, Rules Identification and Execution Tracking System")),
                         React.createElement("div", { className: "flex items-center gap-2 flex-wrap justify-end" },
                             React.createElement("button", { onClick: () => setIsDark(!isDark), className: "flex justify-center items-center w-9 h-9 rounded-full hover:bg-white/20 transition-colors border border-white/30", title: "\u5207\u63DB\u6DF1\u6DFA\u8272\u6A21\u5F0F" }, isDark ? React.createElement(IconSun, { size: 18 }) : React.createElement(IconMoon, { size: 18 })),
+                            React.createElement("button", { onClick: () => setUiLang(uiLang === 'zh' ? 'en' : 'zh'), className: "flex items-center gap-1.5 hover:bg-white/20 px-3 py-2 rounded-lg text-sm transition-colors border border-white/30 font-bold", title: "中文 / English", 'data-no-translate': 'true' }, uiLang === 'zh' ? 'English' : '中文'),
                             React.createElement("div", { className: "relative mr-1" },
                                 React.createElement("button", { onClick: (e) => { e.stopPropagation(); setThemeDropdownOpen(!themeDropdownOpen); }, className: "flex items-center gap-1.5 hover:bg-white/20 px-4 py-2 rounded-lg text-sm transition-colors border border-white/30 font-bold" },
                                     React.createElement(IconPalette, { size: 18 }),
@@ -3064,6 +3323,9 @@
                                                         openDropdownId === `exp-reg-${task.id}` && (React.createElement("div", { onClick: (e) => e.stopPropagation(), className: "absolute top-full left-0 mt-1 w-full max-w-[200px] bg-white dark:bg-darkcard border border-slate-300 dark:border-slate-600 rounded-lg shadow-xl z-20 max-h-56 overflow-y-auto no-print" }, REGIONS.map(opt => (React.createElement("label", { key: opt, className: "flex items-center px-4 py-3 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-0" },
                                                             React.createElement("input", { type: "checkbox", checked: (task.applicableRegions || []).includes(opt), onChange: () => toggleArrayField(task.id, 'applicableRegions', opt), className: `mr-3 h-4 w-4 bg-transparent rounded border-slate-400 dark:border-slate-500 ${currentTheme.text}` }),
                                                             React.createElement("span", { className: "font-bold text-slate-800 dark:text-slate-100" }, opt))))))),
+                                                    React.createElement("label", { className: `flex items-center gap-3 bg-white dark:bg-[#1E293B] border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 cursor-pointer ${isCompleted ? 'opacity-70 cursor-default' : 'hover:border-slate-400 dark:hover:border-slate-500'}` },
+                                                        React.createElement("input", { type: "checkbox", checked: !!task.requiresMoc, disabled: isCompleted, onChange: (e) => updateTask(task.id, 'requiresMoc', e.target.checked), className: `h-4 w-4 rounded border-slate-400 dark:border-slate-500 bg-transparent ${currentTheme.text}` }),
+                                                        React.createElement("span", { className: "font-bold text-slate-800 dark:text-slate-100" }, task.requiresMoc ? "需要 MOC" : "不需要 MOC")),
                                                     React.createElement("div", { className: "relative" },
                                                         React.createElement("label", { className: "font-bold text-slate-600 dark:text-slate-300 mb-1.5 block" }, "\u9069\u7528\u8239\u578B (\u591A\u9078)"),
                                                         React.createElement("div", { onClick: (e) => { e.stopPropagation(); if (!isCompleted)
@@ -3186,6 +3448,10 @@
                                             }, className: `mr-3 h-4 w-4 bg-transparent rounded border-slate-300 dark:border-slate-500 transition-colors ${currentTheme.text}` }),
                                         " ",
                                         r))))),
+                                React.createElement("div", { className: "md:col-span-2" },
+                                    React.createElement("label", { className: "inline-flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" },
+                                        React.createElement("input", { type: "checkbox", checked: !!newTaskForm.requiresMoc, onChange: e => setNewTaskForm({ ...newTaskForm, requiresMoc: e.target.checked }), className: `h-4 w-4 bg-transparent rounded border-slate-300 dark:border-slate-500 transition-colors ${currentTheme.text}` }),
+                                        React.createElement("span", { className: "font-bold text-slate-800 dark:text-slate-100" }, newTaskForm.requiresMoc ? "需要 MOC" : "不需要 MOC"))),
                                 React.createElement("div", { className: "md:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-6 mt-2" },
                                     React.createElement("label", { className: "font-bold text-slate-800 dark:text-slate-200 block mb-3" }, "\u9069\u7528\u8239\u578B (\u591A\u9078)"),
                                     React.createElement("div", { className: "flex flex-wrap gap-3" }, SHIP_TYPES.map(s => (React.createElement("label", { key: s, className: "flex items-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" },
