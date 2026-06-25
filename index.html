@@ -1219,7 +1219,7 @@
     /* Dashboard 圓餅圖文字：取消描邊/陰影，使用細字 */
     .dashboard-pie-label {
       fill: #334155 !important;
-      font-weight: 300 !important;
+      font-weight: 500 !important;
       stroke: none !important;
       paint-order: normal !important;
       text-shadow: none !important;
@@ -1228,7 +1228,7 @@
 
     html.dark .dashboard-pie-label {
       fill: #f8fafc !important;
-      font-weight: 300 !important;
+      font-weight: 500 !important;
       stroke: none !important;
       text-shadow: none !important;
       filter: none !important;
@@ -1424,7 +1424,7 @@
       paint-order: fill !important;
       text-shadow: none !important;
       filter: none !important;
-      font-weight: 300 !important;
+      font-weight: 500 !important;
       letter-spacing: 0 !important;
     }
 
@@ -1444,6 +1444,84 @@
       color: #f8fafc !important;
       -webkit-text-fill-color: #f8fafc !important;
     }
+
+    /* 暗黑模式 hover / 展開詳情：禁止滑鼠移到時變成白底淡字 */
+    html.dark tr:hover,
+    html.dark tbody tr:hover,
+    html.dark .status-list-row:hover,
+    html.dark [class*="hover:bg-slate-50"]:hover,
+    html.dark [class*="hover:bg-slate-100"]:hover,
+    html.dark [class*="hover:bg-white"]:hover,
+    html.dark [class*="group-hover:bg-slate-50"]:hover,
+    html.dark .hover-scale:hover {
+      background-color: #273449 !important;
+      color: #f8fafc !important;
+      -webkit-text-fill-color: #f8fafc !important;
+    }
+
+    html.dark tr:hover *,
+    html.dark tbody tr:hover *,
+    html.dark .status-list-row:hover *,
+    html.dark [class*="hover:bg-slate-50"]:hover *,
+    html.dark [class*="hover:bg-slate-100"]:hover *,
+    html.dark [class*="hover:bg-white"]:hover *,
+    html.dark .hover-scale:hover * {
+      color: #f8fafc !important;
+      -webkit-text-fill-color: #f8fafc !important;
+    }
+
+    html.dark .expanded-detail-row,
+    html.dark .expanded-detail-row td,
+    html.dark .expanded-detail-panel,
+    html.dark .expanded-detail-panel * {
+      background-color: #111827 !important;
+      color: #e5e7eb !important;
+      -webkit-text-fill-color: #e5e7eb !important;
+      border-color: #475569 !important;
+    }
+
+    html.dark .expanded-detail-panel input,
+    html.dark .expanded-detail-panel textarea,
+    html.dark .expanded-detail-panel select,
+    html.dark .expanded-detail-panel [contenteditable="true"],
+    html.dark .expanded-detail-panel [contenteditable=""] {
+      background-color: #0f172a !important;
+      color: #f8fafc !important;
+      -webkit-text-fill-color: #f8fafc !important;
+      border-color: #64748b !important;
+    }
+
+    html.dark .expanded-detail-panel input::placeholder,
+    html.dark .expanded-detail-panel textarea::placeholder,
+    html.dark .expanded-detail-panel [data-placeholder]:empty:before {
+      color: #94a3b8 !important;
+      -webkit-text-fill-color: #94a3b8 !important;
+    }
+
+
+    /* 覆蓋舊的 print-avoid-break 展開詳情白底規則：暗黑模式必須深底亮字 */
+    html.dark tbody.print-avoid-break > tr:nth-child(2),
+    html.dark tbody.print-avoid-break > tr:nth-child(2) > td,
+    html.dark tbody.print-avoid-break > tr:nth-child(2) td.expanded-detail-panel,
+    html.dark tbody.print-avoid-break > tr:nth-child(2) .expanded-detail-panel {
+      background-color: #111827 !important;
+      color: #f8fafc !important;
+      -webkit-text-fill-color: #f8fafc !important;
+      border-color: #475569 !important;
+    }
+
+    html.dark tbody.print-avoid-break > tr:nth-child(2) .expanded-detail-panel input,
+    html.dark tbody.print-avoid-break > tr:nth-child(2) .expanded-detail-panel select,
+    html.dark tbody.print-avoid-break > tr:nth-child(2) .expanded-detail-panel textarea,
+    html.dark tbody.print-avoid-break > tr:nth-child(2) .expanded-detail-panel [contenteditable="true"],
+    html.dark tbody.print-avoid-break > tr:nth-child(2) .expanded-detail-panel [contenteditable=""] {
+      background-color: #0f172a !important;
+      color: #f8fafc !important;
+      -webkit-text-fill-color: #f8fafc !important;
+      border-color: #64748b !important;
+      color-scheme: dark;
+    }
+
   </style>
 
 </head>
@@ -1811,7 +1889,7 @@
             if (total === 0)
                 return React.createElement("div", { className: "text-slate-400 text-sm m-auto py-10" }, "無資料");
             const pieLabelColor = isDarkMode ? '#f8fafc' : '#0f172a';
-            const pieLabelStyle = { fontFamily: 'Segoe UI, Microsoft JhengHei UI Light, Microsoft JhengHei, sans-serif', fontWeight: 300, letterSpacing: '0px', stroke: 'none', strokeWidth: 0, paintOrder: 'fill', textShadow: 'none' };
+            const pieLabelStyle = { fontFamily: 'Segoe UI, Microsoft JhengHei UI Light, Microsoft JhengHei, sans-serif', fontWeight: 500, letterSpacing: '0px', stroke: 'none', strokeWidth: 0, paintOrder: 'fill', textShadow: 'none' };
             const splitPieLabel = (label) => {
                 const raw = String(label || '');
                 if (raw.includes('/')) return raw.split('/').filter(Boolean);
@@ -1821,9 +1899,9 @@
             };
             const renderPieText = (slice, x, y, compact = false) => {
                 const lines = compact ? [] : splitPieLabel(slice.label);
-                const fontSize = compact ? 8 : (lines.length > 1 ? 7.2 : 8.6);
+                const fontSize = compact ? 8.5 : (lines.length > 1 ? 7.8 : 9.2);
                 const startDy = lines.length > 1 ? '-0.75em' : '-0.35em';
-                return React.createElement("text", { x, y, fill: pieLabelColor, stroke: "none", strokeWidth: "0", fontSize: String(fontSize), fontWeight: "300", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label", style: pieLabelStyle },
+                return React.createElement("text", { x, y, fill: pieLabelColor, stroke: "none", strokeWidth: "0", fontSize: String(fontSize), fontWeight: "500", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label", style: pieLabelStyle },
                     ...lines.map((line, idx) => React.createElement("tspan", { key: idx, x, dy: idx === 0 ? startDy : "1.05em" }, line)),
                     React.createElement("tspan", { x, dy: lines.length ? "1.1em" : "0" }, compact ? String(slice.value) : `${slice.value}件`)
                 );
@@ -2067,6 +2145,7 @@
                 const suffix = `@${USERNAME_AUTH_DOMAIN}`;
                 return raw.endsWith(suffix) ? raw.slice(0, -suffix.length) : raw;
             };
+            const getMocLabel = (checked) => uiLang === 'en' ? (checked ? 'MOC Require' : 'NO MOC Require') : (checked ? '需要 MOC' : '不需要 MOC');
 
             const summarizeTaskChange = (prevTasks, nextTasks) => {
                 if (!Array.isArray(prevTasks) || !Array.isArray(nextTasks)) return { entityId: 'tasks', summary: '儲存法規清單' };
@@ -3298,8 +3377,8 @@
                                                 React.createElement("div", { className: `transform transition-transform ${isExpanded ? 'rotate-90' : ''}` },
                                                     React.createElement(IconChevronRight, { size: 14 })),
                                                 isExpanded ? '收合詳情' : '展開詳情'))),
-                                    isExpanded && (React.createElement("tr", { className: `border-b border-slate-300 dark:border-slate-600 ${isCompleted ? 'bg-emerald-50/40 dark:bg-[#11221B]' : 'bg-slate-100 dark:bg-[#161F33]'}` },
-                                        React.createElement("td", { colSpan: "6", className: "p-6 shadow-inner" },
+                                    isExpanded && (React.createElement("tr", { className: `expanded-detail-row border-b border-slate-300 dark:border-slate-600 ${isCompleted ? 'bg-emerald-50/40 dark:bg-[#11221B]' : 'bg-slate-100 dark:bg-[#161F33]'}` },
+                                        React.createElement("td", { colSpan: "6", className: "p-6 shadow-inner expanded-detail-panel" },
                                             React.createElement("div", { className: "grid grid-cols-1 xl:grid-cols-6 gap-6 text-sm" },
                                                 React.createElement("div", { className: "space-y-4 xl:col-span-1" },
                                                     React.createElement("div", { className: "flex flex-col gap-4" },
@@ -3325,7 +3404,7 @@
                                                             React.createElement("span", { className: "font-bold text-slate-800 dark:text-slate-100" }, opt))))))),
                                                     React.createElement("label", { className: `flex items-center gap-3 bg-white dark:bg-[#1E293B] border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 cursor-pointer ${isCompleted ? 'opacity-70 cursor-default' : 'hover:border-slate-400 dark:hover:border-slate-500'}` },
                                                         React.createElement("input", { type: "checkbox", checked: !!task.requiresMoc, disabled: isCompleted, onChange: (e) => updateTask(task.id, 'requiresMoc', e.target.checked), className: `h-4 w-4 rounded border-slate-400 dark:border-slate-500 bg-transparent ${currentTheme.text}` }),
-                                                        React.createElement("span", { className: "font-bold text-slate-800 dark:text-slate-100" }, task.requiresMoc ? "需要 MOC" : "不需要 MOC")),
+                                                        React.createElement("span", { className: "font-bold text-slate-800 dark:text-slate-100", "data-no-translate": "true" }, getMocLabel(!!task.requiresMoc))),
                                                     React.createElement("div", { className: "relative" },
                                                         React.createElement("label", { className: "font-bold text-slate-600 dark:text-slate-300 mb-1.5 block" }, "\u9069\u7528\u8239\u578B (\u591A\u9078)"),
                                                         React.createElement("div", { onClick: (e) => { e.stopPropagation(); if (!isCompleted)
@@ -3451,7 +3530,7 @@
                                 React.createElement("div", { className: "md:col-span-2" },
                                     React.createElement("label", { className: "inline-flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" },
                                         React.createElement("input", { type: "checkbox", checked: !!newTaskForm.requiresMoc, onChange: e => setNewTaskForm({ ...newTaskForm, requiresMoc: e.target.checked }), className: `h-4 w-4 bg-transparent rounded border-slate-300 dark:border-slate-500 transition-colors ${currentTheme.text}` }),
-                                        React.createElement("span", { className: "font-bold text-slate-800 dark:text-slate-100" }, newTaskForm.requiresMoc ? "需要 MOC" : "不需要 MOC"))),
+                                        React.createElement("span", { className: "font-bold text-slate-800 dark:text-slate-100", "data-no-translate": "true" }, getMocLabel(!!newTaskForm.requiresMoc)))),
                                 React.createElement("div", { className: "md:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-6 mt-2" },
                                     React.createElement("label", { className: "font-bold text-slate-800 dark:text-slate-200 block mb-3" }, "\u9069\u7528\u8239\u578B (\u591A\u9078)"),
                                     React.createElement("div", { className: "flex flex-wrap gap-3" }, SHIP_TYPES.map(s => (React.createElement("label", { key: s, className: "flex items-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" },
