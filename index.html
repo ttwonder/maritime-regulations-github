@@ -2622,6 +2622,25 @@
                 }
             };
 
+            const syncLatestFromCloud = async (silent = false) => {
+                const client = cloudRef.current.client || cloudClient;
+                if (!client) {
+                    if (!silent) alert('尚未設定 Supabase，無法同步雲端最新內容。');
+                    return false;
+                }
+                try {
+                    const session = cloudRef.current.session || cloudSession;
+                    if (session) await loadCloudState(client, session);
+                    else await loadPublicCloudState(client);
+                    if (!silent) alert('已同步最新雲端內容。');
+                    return true;
+                } catch (err) {
+                    if (!silent) alert('同步最新失敗：' + (err.message || JSON.stringify(err)));
+                    else console.warn('Auto sync latest failed:', err);
+                    return false;
+                }
+            };
+
             useEffect(() => {
                 const initSupabase = async () => {
                     const cfg = getStoredSupabaseConfig();
@@ -2663,6 +2682,21 @@
                 };
                 initSupabase();
             }, []);
+
+            useEffect(() => {
+                if (!siteUnlocked || !cloudClient) return;
+                syncLatestFromCloud(true);
+                const syncOnFocus = () => syncLatestFromCloud(true);
+                const syncOnVisible = () => { if (document.visibilityState === 'visible') syncLatestFromCloud(true); };
+                window.addEventListener('focus', syncOnFocus);
+                document.addEventListener('visibilitychange', syncOnVisible);
+                const timer = setInterval(() => syncLatestFromCloud(true), 60000);
+                return () => {
+                    window.removeEventListener('focus', syncOnFocus);
+                    document.removeEventListener('visibilitychange', syncOnVisible);
+                    clearInterval(timer);
+                };
+            }, [siteUnlocked, cloudClient, cloudSession]);
 
             const openOperatorIdentityModal = (actionLabel, retryCallback) => {
                 const normalizedRoster = normalizeOperatorRoster(operatorRoster);
@@ -3259,15 +3293,9 @@
                 await loadAuditLogs();
             };
             const handleManualSyncLatest = async () => {
-                if (!cloudClient) { alert('尚未設定 Supabase，無法同步雲端最新內容。'); return; }
                 setIsCloudBusy(true);
-                try {
-                    if (cloudSession) await loadCloudState(cloudClient, cloudSession);
-                    else await loadPublicCloudState(cloudClient);
-                    alert('已同步最新雲端內容。');
-                } catch (err) {
-                    alert('同步最新失敗：' + (err.message || JSON.stringify(err)));
-                } finally { setIsCloudBusy(false); }
+                try { await syncLatestFromCloud(false); }
+                finally { setIsCloudBusy(false); }
             };
             const handleManualSaveChanges = async () => {
                 if (!cloudClient) { alert('尚未設定 Supabase，修改只會保存在本瀏覽器。'); return; }
@@ -3812,6 +3840,8 @@
                                 " ",
                                 React.createElement("span", { className: "hidden sm:inline" }, cloudSession ? (ROLE_LABELS[cloudRole] || cloudRole) : (currentOperator ? `${PERSONNEL_ROLE_LABELS[getPersonnelRole(currentOperator.name)] || '操作員'}：${currentOperator.name}` : "登入/管理"))))),
                 React.createElement("main", { className: "max-w-[1600px] mx-auto p-4 flex-1 flex flex-col w-full" },
+                    !cloudClient && React.createElement("div", { className: "no-print mb-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3 font-bold shadow-sm" },
+                        "⚠️ 尚未連接 Supabase 雲端。現在看到的是本機瀏覽器暫存資料，可能不是最新內容；請管理員設定 supabase-config.js 或在管理中心填入 Supabase 設定。"),
                     (React.createElement("div", { className: "bg-white dark:bg-darkcard rounded-xl shadow-md border border-slate-300 dark:border-slate-600 p-4 mb-4 space-y-4 shrink-0 no-print" },
                         React.createElement("div", { className: "flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4" },
                             React.createElement("div", { className: "app-tabs flex flex-wrap bg-slate-100 dark:bg-slate-800 rounded-lg p-1.5 w-full xl:w-fit gap-1 overflow-visible border border-slate-200 dark:border-slate-700" }, TAB_LIST.map(tab => (React.createElement("button", { key: tab.id, onClick: () => tab.id === 'admin' ? requestAdminAccess() : setActiveTab(tab.id), title: tab.title, className: `flex-1 lg:flex-none flex items-center justify-center gap-2 py-2.5 px-5 rounded-md font-bold transition-all text-sm whitespace-nowrap ${activeTab === tab.id ? `app-tab-active ${currentTheme.color} text-white shadow-md` : 'app-tab-idle text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/30'}` },
