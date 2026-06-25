@@ -1568,6 +1568,106 @@
       text-rendering: geometricPrecision !important;
     }
   </style>
+
+
+  <style id="pdf-print-output-final-fix">
+    @page {
+      size: A4 landscape;
+      margin: 8mm;
+    }
+
+    @media print {
+      html, body {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        font-family: "Microsoft JhengHei", "PingFang TC", Arial, sans-serif !important;
+      }
+
+      body * {
+        box-shadow: none !important;
+        text-shadow: none !important;
+      }
+
+      header,
+      .no-print,
+      .floating-format-toolbar,
+      .theme-dropdown-menu,
+      .expanded-detail-row {
+        display: none !important;
+      }
+
+      main,
+      main > div:not(.no-print),
+      .fade-in-up,
+      .overflow-x-auto {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        border: none !important;
+        background: #ffffff !important;
+      }
+
+      table {
+        width: 100% !important;
+        min-width: 0 !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+        font-size: 8.5px !important;
+        line-height: 1.25 !important;
+      }
+
+      thead { display: table-header-group !important; }
+      tbody.print-avoid-break { break-inside: avoid !important; page-break-inside: avoid !important; }
+      tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+
+      th, td {
+        padding: 3px 4px !important;
+        border: 1px solid #cbd5e1 !important;
+        vertical-align: top !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere !important;
+        color: #000000 !important;
+        background: #ffffff !important;
+      }
+
+      thead th {
+        background: #e2e8f0 !important;
+        font-weight: 800 !important;
+        text-align: left !important;
+      }
+
+      table th:nth-child(1), table td:nth-child(1) { width: 6% !important; text-align: center !important; }
+      table th:nth-child(2), table td:nth-child(2) { width: 13% !important; }
+      table th:nth-child(3), table td:nth-child(3) { width: 29% !important; }
+      table th:nth-child(4), table td:nth-child(4) { width: 16% !important; }
+      table th:nth-child(5), table td:nth-child(5) { width: 36% !important; }
+      table th:nth-child(6), table td:nth-child(6) { display: none !important; }
+
+      input, textarea, select, button, [contenteditable="true"] {
+        display: none !important;
+      }
+
+      .print\:block,
+      .print\:inline-block,
+      .print\:inline {
+        display: revert !important;
+      }
+
+      [class*="hidden print:block"] { display: block !important; }
+      [class*="hidden print:inline-block"] { display: inline-block !important; }
+      [class*="print:hidden"] { display: none !important; }
+
+      svg { width: 12px !important; height: 12px !important; }
+      h2 { font-size: 18px !important; margin: 0 0 4px 0 !important; }
+      p { margin: 0 0 3px 0 !important; }
+    }
+  </style>
+
 </head>
 <body class="bg-slate-200 dark:bg-darkbg text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen flex flex-col">
   
@@ -3020,6 +3120,13 @@
             };
             // --- 列印 PDF ---
             const handlePrintPDF = () => {
+                // PDF 列印固定輸出清單版面；若停在看板/管理中心，先切到總清單，避免印出錯誤頁面。
+                const shouldPrintList = ['dashboard', 'admin'].includes(activeTab);
+                if (shouldPrintList) {
+                    setActiveTab('all');
+                    setTimeout(() => window.print(), 180);
+                    return;
+                }
                 window.print();
             };
             // --- Excel 匯出與匯入 ---
