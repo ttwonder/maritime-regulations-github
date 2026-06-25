@@ -1524,6 +1524,50 @@
 
   </style>
 
+  <style id="status-list-moc-sort-and-bold-pie-final-fix">
+    /* 狀態清單新增 MOC 欄位後，重新配置 8 欄寬度 */
+    .status-list-table { min-width: 1180px !important; }
+    .status-list-table th:nth-child(1),
+    .status-list-table td:nth-child(1) { width: 7% !important; }
+    .status-list-table th:nth-child(2),
+    .status-list-table td:nth-child(2) { width: 9% !important; }
+    .status-list-table th:nth-child(3),
+    .status-list-table td:nth-child(3) {
+      width: 35% !important;
+      white-space: normal !important;
+      word-break: normal !important;
+      overflow-wrap: anywhere !important;
+    }
+    .status-list-table th:nth-child(4),
+    .status-list-table td:nth-child(4) { width: 8% !important; }
+    .status-list-table th:nth-child(5),
+    .status-list-table td:nth-child(5) { width: 9% !important; }
+    .status-list-table th:nth-child(6),
+    .status-list-table td:nth-child(6) { width: 12% !important; }
+    .status-list-table th:nth-child(7),
+    .status-list-table td:nth-child(7) {
+      width: 12% !important;
+      white-space: normal !important;
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
+    }
+    .status-list-table th:nth-child(8),
+    .status-list-table td:nth-child(8) {
+      width: 8% !important;
+      white-space: normal !important;
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
+    }
+
+    /* Dashboard 圓餅圖文字：加粗加大，避免看不清 */
+    .dashboard-pie-label,
+    .dashboard-pie-label * {
+      font-family: "Segoe UI", "Microsoft JhengHei UI", "Microsoft JhengHei", sans-serif !important;
+      font-weight: 800 !important;
+      letter-spacing: 0.2px !important;
+      text-rendering: geometricPrecision !important;
+    }
+  </style>
 </head>
 <body class="bg-slate-200 dark:bg-darkbg text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen flex flex-col">
   
@@ -1889,7 +1933,7 @@
             if (total === 0)
                 return React.createElement("div", { className: "text-slate-400 text-sm m-auto py-10" }, "無資料");
             const pieLabelColor = isDarkMode ? '#f8fafc' : '#0f172a';
-            const pieLabelStyle = { fontFamily: 'Segoe UI, Microsoft JhengHei UI Light, Microsoft JhengHei, sans-serif', fontWeight: 500, letterSpacing: '0px', stroke: 'none', strokeWidth: 0, paintOrder: 'fill', textShadow: 'none' };
+            const pieLabelStyle = { fontFamily: 'Segoe UI, Microsoft JhengHei UI, Microsoft JhengHei, sans-serif', fontWeight: 800, letterSpacing: '0.2px', stroke: 'none', strokeWidth: 0, paintOrder: 'fill', textShadow: 'none' };
             const splitPieLabel = (label) => {
                 const raw = String(label || '');
                 if (raw.includes('/')) return raw.split('/').filter(Boolean);
@@ -1899,9 +1943,9 @@
             };
             const renderPieText = (slice, x, y, compact = false) => {
                 const lines = compact ? [] : splitPieLabel(slice.label);
-                const fontSize = compact ? 8.5 : (lines.length > 1 ? 7.8 : 9.2);
+                const fontSize = compact ? 11 : (lines.length > 1 ? 11.5 : 13);
                 const startDy = lines.length > 1 ? '-0.75em' : '-0.35em';
-                return React.createElement("text", { x, y, fill: pieLabelColor, stroke: "none", strokeWidth: "0", fontSize: String(fontSize), fontWeight: "500", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label", style: pieLabelStyle },
+                return React.createElement("text", { x, y, fill: pieLabelColor, stroke: "none", strokeWidth: "0", fontSize: String(fontSize), fontWeight: "800", textAnchor: "middle", dominantBaseline: "middle", className: "dashboard-pie-label", style: pieLabelStyle },
                     ...lines.map((line, idx) => React.createElement("tspan", { key: idx, x, dy: idx === 0 ? startDy : "1.05em" }, line)),
                     React.createElement("tspan", { x, dy: lines.length ? "1.1em" : "0" }, compact ? String(slice.value) : `${slice.value}件`)
                 );
@@ -2028,6 +2072,7 @@
             // 全局搜尋與篩選 (作用於清單)
             const [searchQuery, setSearchQuery] = useState('');
             const [sortOrder, setSortOrder] = useState('newest'); // 'newest' | 'oldest'
+            const [statusListSorts, setStatusListSorts] = useState({ in_progress: 'id_asc', completed: 'id_asc', temp_na: 'id_asc' });
             const [filters, setFilters] = useState({ categories: [], priority: [], department: [], region: [], shipType: [] });
             // Dashboard 專屬過濾器
             const [dashFilters, setDashFilters] = useState({ year: '', category: '', status: 'all_impacted' });
@@ -2977,6 +3022,40 @@
                     completed: filteredTasks.filter(t => !isTempLike(t) && t.status === 'completed'),
                     temp_na: filteredTasks.filter(t => isTempLike(t))
                 };
+                const priorityRank = { '緊急': 1, '高': 2, '中': 3, '低': 4, '需要關注/資源': 5, '暫不適用定期複查': 6, '不適用': 7 };
+                const sortOptions = [
+                    ['id_asc', '編號 ↑'], ['id_desc', '編號 ↓'],
+                    ['priority_asc', '優先級 高→低'], ['priority_desc', '優先級 低→高'],
+                    ['effectiveDate_asc', '生效日 近→遠'], ['effectiveDate_desc', '生效日 遠→近'],
+                    ['department_asc', '涉及部 A→Z'], ['department_desc', '涉及部 Z→A'],
+                    ['assignee_asc', '負責人 A→Z'], ['assignee_desc', '負責人 Z→A'],
+                    ['moc_desc', 'MOC 需要優先'], ['moc_asc', 'MOC 不需要優先']
+                ];
+                const getStatusSortValue = (task, field) => {
+                    if (field === 'id') return String(task.id || '');
+                    if (field === 'priority') {
+                        const taskPrios = getPriorityArr(task.priority);
+                        const ranks = taskPrios.map(p => priorityRank[p] || 99);
+                        return ranks.length ? Math.min(...ranks) : 99;
+                    }
+                    if (field === 'effectiveDate') return task.effectiveDate || '9999-12-31';
+                    if (field === 'department') return (task.departments || []).join('、');
+                    if (field === 'assignee') return stripHtmlForText(task.assignee || '');
+                    if (field === 'moc') return task.requiresMoc ? 1 : 0;
+                    return '';
+                };
+                const sortStatusListItems = (items, sortValue) => {
+                    const [field, direction] = String(sortValue || 'id_asc').split('_');
+                    const multiplier = direction === 'desc' ? -1 : 1;
+                    return [...items].sort((a, b) => {
+                        const av = getStatusSortValue(a, field);
+                        const bv = getStatusSortValue(b, field);
+                        let result;
+                        if (typeof av === 'number' && typeof bv === 'number') result = av - bv;
+                        else result = String(av).localeCompare(String(bv), 'zh-Hant', { numeric: true, sensitivity: 'base' });
+                        return result === 0 ? String(a.id || '').localeCompare(String(b.id || ''), 'zh-Hant', { numeric: true }) : result * multiplier;
+                    });
+                };
                 const goToTask = (taskId) => {
                     setActiveTab('all');
                     setExpandedRows(new Set([taskId]));
@@ -3011,6 +3090,9 @@
                     const effectiveAlertClass = getEffectiveDateAlertClass(task.effectiveDate);
                     return React.createElement('tr', { key: task.id, onClick: () => goToTask(task.id), className: 'status-list-row cursor-pointer border-b border-slate-100 dark:border-slate-700 hover:bg-blue-50/70 dark:hover:bg-slate-800 transition-colors' },
                         React.createElement('td', { className: 'px-2 py-1.5 align-top font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap' }, task.id),
+                        React.createElement('td', { className: 'px-2 py-1.5 align-top whitespace-nowrap' },
+                            React.createElement('span', { className: `inline-flex items-center px-2 py-0.5 rounded-md border text-[11px] font-extrabold ${task.requiresMoc ? 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200 dark:bg-fuchsia-900/35 dark:text-fuchsia-200 dark:border-fuchsia-700' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600'}` }, getMocLabel(!!task.requiresMoc))
+                        ),
                         React.createElement('td', { className: 'px-2 py-1.5 align-top font-semibold text-slate-900 dark:text-slate-100 leading-snug' }, titleText),
                         React.createElement('td', { className: 'px-2 py-1.5 align-top whitespace-nowrap' },
                             React.createElement('span', { className: `inline-flex items-center px-2 py-0.5 rounded-md border text-[11px] font-extrabold ${getPriorityColor(primaryPriority)}` }, primaryPriority)
@@ -3021,21 +3103,28 @@
                         React.createElement('td', { className: 'px-2 py-1.5 align-top text-slate-700 dark:text-slate-300 whitespace-nowrap' }, assigneeText)
                     );
                 };
-                const renderSection = (label, items, badgeClass) => {
-                    const rows = items.length > 0 ? items.map(renderCompactRow) : [React.createElement('tr', { key: 'empty' }, React.createElement('td', { colSpan: '7', className: 'px-3 py-4 text-center text-slate-400 dark:text-slate-500 italic' }, '目前無項目'))];
+                const renderSection = (sectionKey, label, items, badgeClass) => {
+                    const sectionSort = statusListSorts[sectionKey] || 'id_asc';
+                    const sortedItems = sortStatusListItems(items, sectionSort);
+                    const rows = sortedItems.length > 0 ? sortedItems.map(renderCompactRow) : [React.createElement('tr', { key: 'empty' }, React.createElement('td', { colSpan: '8', className: 'px-3 py-4 text-center text-slate-400 dark:text-slate-500 italic' }, '目前無項目'))];
                     return React.createElement('section', { className: 'status-list-section bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-sm overflow-hidden print-avoid-break' },
-                        React.createElement('div', { className: 'flex items-center justify-between px-3 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800' },
+                        React.createElement('div', { className: 'flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800' },
                             React.createElement('div', { className: 'flex items-center gap-2' },
                                 React.createElement('span', { className: `inline-flex items-center px-2.5 py-1 rounded-full text-xs font-extrabold ${badgeClass}` }, label),
                                 React.createElement('span', { className: 'text-xs font-bold text-slate-500 dark:text-slate-400' }, items.length, ' 項')
                             ),
-                            React.createElement('span', { className: 'text-[11px] text-slate-400 dark:text-slate-500 no-print' }, '點擊條目可跳至總清單')
+                            React.createElement('div', { className: 'no-print flex items-center gap-2' },
+                                React.createElement('span', { className: 'text-[11px] font-bold text-slate-500 dark:text-slate-400' }, '區塊排序'),
+                                React.createElement('select', { value: sectionSort, onChange: (e) => setStatusListSorts(prev => ({ ...prev, [sectionKey]: e.target.value })), className: `bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none cursor-pointer ${currentTheme.ring}` }, sortOptions.map(([value, text]) => React.createElement('option', { key: value, value }, text))),
+                                React.createElement('span', { className: 'text-[11px] text-slate-400 dark:text-slate-500 hidden md:inline' }, '點擊條目可跳至總清單')
+                            )
                         ),
                         React.createElement('div', { className: 'overflow-x-auto' },
                             React.createElement('table', { className: 'status-list-table w-full text-left text-xs border-collapse table-fixed' },
                                 React.createElement('thead', { className: 'bg-white dark:bg-darkcard text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700' },
                                     React.createElement('tr', null,
                                         React.createElement('th', { className: 'px-2 py-1.5 font-bold w-[96px]' }, '編號'),
+                                        React.createElement('th', { className: 'px-2 py-1.5 font-bold w-[104px]' }, 'MOC需求'),
                                         React.createElement('th', { className: 'px-2 py-1.5 font-bold' }, '標題'),
                                         React.createElement('th', { className: 'px-2 py-1.5 font-bold w-[92px]' }, '優先級'),
                                         React.createElement('th', { className: 'px-2 py-1.5 font-bold w-[108px]' }, '生效日'),
@@ -3062,9 +3151,9 @@
                             )
                         ),
                         React.createElement('div', { className: 'flex flex-col gap-3' },
-                            renderSection('進行中', grouped.in_progress, 'bg-amber-100 text-amber-800 border border-amber-200'),
-                            renderSection('已完成', grouped.completed, 'bg-teal-100 text-teal-800 border border-teal-200'),
-                            renderSection('暫不適用', grouped.temp_na, 'bg-blue-100 text-blue-800 border border-blue-200')
+                            renderSection('in_progress', '進行中', grouped.in_progress, 'bg-amber-100 text-amber-800 border border-amber-200'),
+                            renderSection('completed', '已完成', grouped.completed, 'bg-teal-100 text-teal-800 border border-teal-200'),
+                            renderSection('temp_na', '暫不適用', grouped.temp_na, 'bg-blue-100 text-blue-800 border border-blue-200')
                         )
                     )
                 );
