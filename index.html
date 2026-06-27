@@ -2532,32 +2532,132 @@
                 const bodyText = getTextPreview(doc.body ? doc.body.innerText : html, 1800);
                 return { title, description: description || bodyText.slice(0, 420), bodyText };
             };
+            const normalizeImportKey = (value) => stripHtmlForText(value || '').toLowerCase().replace(/https?:\/\//g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().slice(0, 180);
+            const guessSourceFromText = (text, fallback = '其他') => {
+                const t = String(text || '').toLowerCase();
+                if (/\bimo\b|msc\.?\s*\d|mepc\.?\s*\d|solas|marpol|resolution/.test(t)) return 'IMO';
+                if (/\bimo\b|國際海事組織/.test(t)) return 'IMO';
+                if (/us coast guard|uscg|cfr|美國海岸防衛隊/.test(t)) return 'USCG';
+                if (/european union|\beu\b|eur-lex|歐盟/.test(t)) return 'EU';
+                if (/classnk|nippon kaiji|日本海事協會/.test(t)) return 'ClassNK';
+                if (/dnv|lloyd|abs|bureau veritas|class society|船級社/.test(t)) return '船級社';
+                return SOURCES.includes(fallback) ? fallback : '其他';
+            };
+            const extractRegulatoryHints = (text) => {
+                const raw = String(text || '');
+                const clean = raw.replace(/\s+/g, ' ').trim();
+                const lower = clean.toLowerCase();
+                const dateCandidates = [];
+                const pushDate = (y, m, d) => {
+                    const yy = Number(y), mm = Number(m), dd = Number(d);
+                    if (yy >= 2020 && yy <= 2045 && mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) dateCandidates.push(`${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`);
+                };
+                [...clean.matchAll(/(20\d{2})[-/.年]\s*(\d{1,2})[-/.月]\s*(\d{1,2})/g)].forEach(m => pushDate(m[1], m[2], m[3]));
+                [...clean.matchAll(/(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(20\d{2})/gi)].forEach(m => {
+                    const months = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+                    pushDate(m[3], months[m[2].slice(0,3).toLowerCase()], m[1]);
+                });
+                const refMatches = [...clean.matchAll(/\b(?:MSC|MEPC|A|BWM|FAL|LEG|MSC-MEPC|Res\.?|Resolution|Circular|Circ\.?|MEPC\.\d+\(\d+\)|MSC\.\d+\(\d+\))[\w.()\/\-]+/gi)].map(m => m[0]);
+                const noticeMatches = [...clean.matchAll(/(?:通函|公告|通知|決議|決議案|修正案|規則|指南|指引|Circular|Notice|Resolution)\s*[A-Z0-9.()\/-]{2,}/gi)].map(m => m[0]);
+                const regions = [];
+                if (/global|worldwide|international|imo|全球|國際/.test(lower)) regions.push('全球');
+                if (/european union|\beu\b|歐盟|eur-lex/.test(lower)) regions.push('歐盟 (EU)');
+                if (/united states|\busa\b|uscg|美國/.test(lower)) regions.push('美國 (USA)');
+                if (/uk|united kingdom|英國/.test(lower)) regions.push('英國 (UK)');
+                if (/china|中國/.test(lower)) regions.push('中國 (China)');
+                if (/singapore|新加坡/.test(lower)) regions.push('新加坡 (Singapore)');
+                const shipTypes = [];
+                if (/all ships|all vessels|所有船|全部船/.test(lower)) shipTypes.push('所有船舶');
+                if (/container|貨櫃/.test(lower)) shipTypes.push('貨櫃船');
+                if (/bulk|散裝/.test(lower)) shipTypes.push('散裝船');
+                if (/lng|lpg|gas carrier|液化氣/.test(lower)) shipTypes.push('液化氣船');
+                if (/passenger|客船/.test(lower)) shipTypes.push('客船');
+                if (/tanker|油輪/.test(lower)) shipTypes.push('油輪');
+                if (/ro-?ro/.test(lower)) shipTypes.push('Ro-Ro');
+                const departments = [];
+                if (/engine|machinery|fuel|燃油|機艙|輪機|設備/.test(lower)) departments.push('輪機部');
+                if (/navigation|chart|route|航行|航海|駕駛/.test(lower)) departments.push('航海部');
+                if (/crew|seafarer|manning|船員|培訓|休息/.test(lower)) departments.push('船員部');
+                if (/safety|ism|audit|psc|port state|安全|檢查|滯留/.test(lower)) departments.push('安全部');
+                if (/environment|emission|carbon|環保|排放|碳/.test(lower)) departments.push('環保部');
+                return {
+                    effectiveDate: dateCandidates[0] || '',
+                    references: [...new Set([...refMatches, ...noticeMatches])].slice(0, 5),
+                    regions: [...new Set(regions.length ? regions : ['全球'])],
+                    shipTypes: [...new Set(shipTypes.length ? shipTypes : ['所有船舶'])],
+                    departments: [...new Set(departments)],
+                    requiresMoc: /management of change|\bmoc\b|改造|改裝|設備更換|系統變更|程序變更|software update|硬體|新設備/.test(lower)
+                };
+            };
+            const splitImportedTextIntoItems = (text, maxItems = 12) => {
+                const raw = String(text || '').replace(/\r/g, '\n');
+                const normalized = raw.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+                if (!normalized) return [];
+                const chunks = [];
+                const pushChunk = (chunk) => {
+                    const clean = chunk.replace(/\n{3,}/g, '\n\n').trim();
+                    if (clean.length >= 80 && !chunks.some(x => normalizeImportKey(x).slice(0, 120) === normalizeImportKey(clean).slice(0, 120))) chunks.push(clean);
+                };
+                if (/--- Page \d+ ---/.test(normalized)) {
+                    normalized.split(/--- Page \d+ ---/).forEach(pushChunk);
+                }
+                if (chunks.length < 2) {
+                    normalized.split(/\n(?=(?:\d+\.|\d+\)|[A-Z]\.|第[一二三四五六七八九十]+[、章節]|[•●▪-]\s+|(?:MSC|MEPC|IMO|USCG|EU|ClassNK|DNV|ABS)\b))/g).forEach(pushChunk);
+                }
+                if (chunks.length < 2) {
+                    normalized.split(/\n(?=.{8,120}(?:Circular|Resolution|Notice|Guideline|Amendment|通函|決議|公告|修正案|指南|指引|規則))/gi).forEach(pushChunk);
+                }
+                if (chunks.length < 2) {
+                    const sentences = normalized.split(/(?<=[。.!?])\s+/).filter(Boolean);
+                    let buffer = '';
+                    sentences.forEach(sentence => {
+                        buffer = buffer ? `${buffer} ${sentence}` : sentence;
+                        if (buffer.length >= 650) { pushChunk(buffer); buffer = ''; }
+                    });
+                    pushChunk(buffer);
+                }
+                return (chunks.length ? chunks : [normalized]).slice(0, maxItems);
+            };
             const inferTaskDraftFromText = (text, sourceLabel = '外來信息', sourceUrl = '', importType = 'manual') => {
                 const clean = String(text || '').replace(/\s+/g, ' ').trim();
-                const title = clean.split(/[。.!?\n]/).find(x => x.trim().length > 8)?.trim().slice(0, 120) || sourceLabel || '待確認外來信息';
+                const hints = extractRegulatoryHints(clean);
+                const headingMatch = clean.match(/^(?:[-•●▪\d.)\s]*)?(.{12,160}?)(?:[。.!?]|\s{2,}|$)/);
+                const title = (headingMatch && headingMatch[1] ? headingMatch[1] : clean.split(/[。.!?\n]/).find(x => x.trim().length > 8) || sourceLabel || '待確認外來信息').trim().slice(0, 120);
                 const lower = clean.toLowerCase();
                 const cats = [];
-                if (/emission|carbon|ghg|cii|fuel|排放|碳|溫室/.test(lower)) cats.push('環境保護', '溫室氣體與排放');
-                if (/cyber|網路|資安/.test(lower)) cats.push('網路安全');
-                if (/crew|seafarer|船員|休息/.test(lower)) cats.push('船員管理');
-                if (/equipment|certificate|設備|證書|檢驗/.test(lower)) cats.push('設備要求');
-                if (/navigation|航行|route|chart/.test(lower)) cats.push('航行安全');
+                if (/emission|carbon|ghg|cii|fuel|排放|碳|溫室|eexi|eu ets|fuel eu/.test(lower)) cats.push('環境保護', '溫室氣體與排放');
+                if (/cyber|網路|資安|e-navigation|digital/.test(lower)) cats.push('網路安全');
+                if (/crew|seafarer|manning|船員|休息|培訓|training/.test(lower)) cats.push('船員管理');
+                if (/equipment|certificate|survey|設備|證書|檢驗|fire|lifesaving|救生|消防/.test(lower)) cats.push('設備要求');
+                if (/navigation|航行|route|chart|ecdis|collision|海圖/.test(lower)) cats.push('航行安全');
+                if (/psc|detention|port state|ism|audit|inspection|檢查|滯留|缺陷/.test(lower)) cats.push('營運與合規');
                 const uniqueCats = [...new Set(cats.length ? cats : ['營運與合規'])];
-                const priority = /urgent|immediate|緊急|立即|mandatory|強制|罰/.test(lower) ? ['高'] : ['中'];
+                const priority = /urgent|immediate|緊急|立即|mandatory|強制|罰|detention|滯留|deficiency|major non-conformity/.test(lower) ? ['高'] : ['中'];
+                const source = guessSourceFromText(clean, sourceLabel);
+                const refs = hints.references.length ? hints.references.join('；') : '';
+                const remarks = [
+                    `由${importType === 'pdf' ? 'PDF導入' : importType === 'source' ? '消息源抓取' : importType === 'url' ? '網址抓取' : '手動新增'}建立，尚未確認為正式項目。`,
+                    refs ? `自動識別參考號：${refs}` : '',
+                    hints.effectiveDate ? `自動識別疑似生效/發布日期：${hints.effectiveDate}` : '',
+                    hints.requiresMoc ? '自動判斷可能涉及 MOC，請管理員確認。' : ''
+                ].filter(Boolean).join('<br>');
                 return {
                     ...makeBlankTaskDraft(''),
                     categories: uniqueCats,
                     title,
                     description: getTextPreview(clean, 520),
                     priority,
-                    source: SOURCES.includes(sourceLabel) ? sourceLabel : '其他',
+                    source,
                     currentStatus: '備選項目：待管理員人工確認',
-                    progress: '請核對官方來源、適用範圍、生效日、負責部門與是否需要 MOC 後，再確認轉正式項目。',
+                    progress: '請核對官方來源、適用範圍、生效日、負責部門、是否需要 MOC、是否與既有項目重複後，再確認轉正式項目。',
                     originalText: getTextPreview(clean, 3000),
-                    sourceReference: sourceUrl || sourceLabel,
-                    remarks: `由${importType === 'pdf' ? 'PDF導入' : importType === 'source' ? '消息源抓取' : '網址抓取'}建立，尚未確認為正式項目。`,
-                    applicableRegions: ['全球'],
-                    applicableShipTypes: ['所有船舶']
+                    sourceReference: [sourceUrl || sourceLabel, refs].filter(Boolean).join('｜'),
+                    remarks,
+                    departments: hints.departments,
+                    effectiveDate: hints.effectiveDate,
+                    applicableRegions: hints.regions,
+                    applicableShipTypes: hints.shipTypes,
+                    requiresMoc: hints.requiresMoc
                 };
             };
             const buildCandidate = (taskDraft, meta = {}) => ({
@@ -3361,12 +3461,53 @@
                 if (!window.confirm('確定刪除此備選項目？')) return;
                 updateCandidateItems(prev => prev.filter(item => item.id !== candidateId), `刪除備選項目 ${candidateId}`);
             };
-            const addCandidateFromText = (text, meta = {}) => {
-                const candidate = buildCandidate(inferTaskDraftFromText(text, meta.importSource || '外來信息', meta.sourceUrl || '', meta.importType || 'manual'), meta);
-                const ok = updateCandidateItems(prev => [candidate, ...prev], `新增備選項目（${meta.importSource || meta.importType || '外來信息'}）`);
-                if (ok) setActiveTab('candidates');
-                return candidate;
+            const getCandidateDedupeKey = (candidate) => {
+                const task = candidate && candidate.task ? candidate.task : candidate || {};
+                const sourceUrl = normalizeImportKey(candidate?.sourceUrl || task.sourceReference || '');
+                const title = normalizeImportKey(task.title || '');
+                return sourceUrl ? `${sourceUrl}|${title}` : title;
             };
+            const isDuplicateDraft = (candidate, existingCandidates = candidateItems, formalTasks = tasks) => {
+                const key = getCandidateDedupeKey(candidate);
+                if (!key) return false;
+                const title = normalizeImportKey(candidate?.task?.title || '');
+                const sourceUrl = normalizeImportKey(candidate?.sourceUrl || candidate?.task?.sourceReference || '');
+                const sameCandidate = (existingCandidates || []).some(item => {
+                    const itemTitle = normalizeImportKey(item?.task?.title || '');
+                    const itemSource = normalizeImportKey(item?.sourceUrl || item?.task?.sourceReference || '');
+                    return (sourceUrl && itemSource && itemSource === sourceUrl) || (title && itemTitle && itemTitle === title);
+                });
+                if (sameCandidate) return true;
+                return (formalTasks || []).some(task => {
+                    const taskTitle = normalizeImportKey(task.title || '');
+                    const taskSource = normalizeImportKey(task.sourceReference || '');
+                    return (sourceUrl && taskSource && taskSource === sourceUrl) || (title && taskTitle && taskTitle === title);
+                });
+            };
+            const addCandidatesFromText = (text, meta = {}) => {
+                const chunks = splitImportedTextIntoItems(text, meta.maxItems || 12);
+                const candidates = chunks.map((chunk, index) => buildCandidate(
+                    inferTaskDraftFromText(chunk, meta.importSource || '外來信息', meta.sourceUrl || '', meta.importType || 'manual'),
+                    { ...meta, notes: [meta.notes, chunks.length > 1 ? `自動拆分第 ${index + 1}/${chunks.length} 段，需人工核對。` : ''].filter(Boolean).join(' ') }
+                ));
+                let result = { added: 0, skipped: 0, candidates: [] };
+                const ok = updateCandidateItems(prev => {
+                    const next = [...prev];
+                    candidates.forEach(candidate => {
+                        if (isDuplicateDraft(candidate, next, tasks)) {
+                            result.skipped += 1;
+                        } else {
+                            next.unshift(candidate);
+                            result.added += 1;
+                            result.candidates.push(candidate);
+                        }
+                    });
+                    return next;
+                }, `匯入備選項目（${meta.importSource || meta.importType || '外來信息'}）：新增 ${candidates.length} 筆候選草稿`);
+                if (ok && result.added > 0) setActiveTab('candidates');
+                return result;
+            };
+            const addCandidateFromText = (text, meta = {}) => addCandidatesFromText(text, { ...meta, maxItems: 1 }).candidates[0] || null;
             const addMessageSource = () => {
                 const url = String(sourceDraft.url || '').trim();
                 const name = String(sourceDraft.name || '').trim();
@@ -3383,14 +3524,13 @@
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const html = await response.text();
                     const info = extractPageInfo(html, source.url);
-                    addCandidateFromText(`${info.title}
-${info.description}
-
-${info.bodyText}`, { importType: 'source', importSource: source.name, sourceUrl: source.url, notes: '由消息源手動更新抓取。' });
-                    updateMessageSources(prev => prev.map(item => item.id === source.id ? { ...item, lastCheckedAt: new Date().toISOString(), lastResult: `已抓取並建立備選：${info.title}` } : item), `更新消息源 ${source.name}`);
-                    setSourceStatus(`已從「${source.name}」建立備選項目。`);
+                    const importText = `${info.title}\n${info.description}\n\n${info.bodyText}`;
+                    const result = addCandidatesFromText(importText, { importType: 'source', importSource: source.name, sourceUrl: source.url, notes: '由消息源手動更新抓取。', maxItems: 10 });
+                    const summary = `已抓取：新增 ${result.added} 筆備選，略過 ${result.skipped} 筆疑似重複。`;
+                    updateMessageSources(prev => prev.map(item => item.id === source.id ? { ...item, lastCheckedAt: new Date().toISOString(), lastResult: summary } : item), `更新消息源 ${source.name}`);
+                    setSourceStatus(`「${source.name}」${summary}`);
                 } catch (err) {
-                    const msg = '抓取失敗：' + (err.message || String(err)) + '。可能是 CORS/防盜鏈限制，請人工打開網址複製內容或使用 PDF 導入。';
+                    const msg = '抓取失敗：' + (err.message || String(err)) + '。可能是 CORS/防盜鏈限制，請人工打開網址複製內容、下載 PDF 後上傳，或後續加後端代理。';
                     updateMessageSources(prev => prev.map(item => item.id === source.id ? { ...item, lastCheckedAt: new Date().toISOString(), lastResult: msg } : item), `消息源抓取失敗 ${source.name}`);
                     setSourceStatus(msg);
                 }
@@ -3417,16 +3557,20 @@ ${info.bodyText}`, { importType: 'source', importSource: source.name, sourceUrl:
                 }
                 const fullText = pages.join('\n\n');
                 setPdfTextPreview(getTextPreview(fullText, 3000));
-                addCandidateFromText(fullText, { importType: 'pdf', importSource: label, sourceUrl, notes: `PDF 自動讀取 ${pdf.numPages} 頁；需人工核對頁碼、來源與適用範圍。` });
-                setPdfStatus(`已讀取 ${pdf.numPages} 頁，並新增為備選項目。`);
-                return fullText;
+                const result = addCandidatesFromText(fullText, { importType: 'pdf', importSource: label, sourceUrl, notes: `PDF 自動讀取 ${pdf.numPages} 頁；需人工核對頁碼、來源與適用範圍。`, maxItems: Math.min(15, Math.max(1, pdf.numPages)) });
+                if (fullText.replace(/\s+/g, '').length < 80) {
+                    setPdfStatus(`PDF 已讀取 ${pdf.numPages} 頁，但可抽取文字很少；可能是掃描件，需要 OCR。`);
+                } else {
+                    setPdfStatus(`已讀取 ${pdf.numPages} 頁，新增 ${result.added} 筆備選，略過 ${result.skipped} 筆疑似重複。`);
+                }
+                return { fullText, pages: pdf.numPages, ...result };
             };
             const handlePdfFileImport = async (event) => {
                 const file = event.target.files && event.target.files[0];
                 if (!file) return;
                 try {
-                    await extractPdfArrayBuffer(await file.arrayBuffer(), file.name, '');
-                    updatePdfLibrary(prev => [{ id: `PDF-${Date.now()}`, title: file.name, url: '', source: '本機上傳', notes: '本機 PDF 解析建立備選項目；檔案本體不會保存到雲端。', status: 'imported', lastImportedAt: new Date().toISOString(), createdAt: Date.now() }, ...prev], `導入 PDF ${file.name}`);
+                    const result = await extractPdfArrayBuffer(await file.arrayBuffer(), file.name, '');
+                    updatePdfLibrary(prev => [{ id: `PDF-${Date.now()}`, title: file.name, url: '', source: '本機上傳', notes: `本機 PDF 解析：新增 ${result.added} 筆備選，略過 ${result.skipped} 筆疑似重複；檔案本體不會保存到雲端。`, status: 'imported', lastImportedAt: new Date().toISOString(), createdAt: Date.now() }, ...prev], `導入 PDF ${file.name}`);
                 } catch (err) {
                     setPdfStatus('PDF 讀取失敗：' + (err.message || String(err)) + '。若是掃描件，需要 OCR 後再導入。');
                 } finally {
@@ -3442,8 +3586,8 @@ ${info.bodyText}`, { importType: 'source', importSource: source.name, sourceUrl:
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const buffer = await response.arrayBuffer();
                     const label = url.split('/').pop() || url;
-                    await extractPdfArrayBuffer(buffer, label, url);
-                    updatePdfLibrary(prev => [{ id: `PDF-${Date.now()}`, title: label, url, source: '在線 PDF', notes: '已從 URL 讀取並建立備選項目。', status: 'imported', lastImportedAt: new Date().toISOString(), createdAt: Date.now() }, ...prev], `導入在線 PDF ${label}`);
+                    const result = await extractPdfArrayBuffer(buffer, label, url);
+                    updatePdfLibrary(prev => [{ id: `PDF-${Date.now()}`, title: label, url, source: '在線 PDF', notes: `已從 URL 讀取：新增 ${result.added} 筆備選，略過 ${result.skipped} 筆疑似重複。`, status: 'imported', lastImportedAt: new Date().toISOString(), createdAt: Date.now() }, ...prev], `導入在線 PDF ${label}`);
                     setPdfUrlInput('');
                 } catch (err) {
                     setPdfStatus('瀏覽器無法直接讀取此 PDF：' + (err.message || String(err)) + '。通常是官方站 CORS/防盜鏈限制；已可先記錄 PDF 網址，或下載後用「上傳 PDF」導入。');
