@@ -1592,28 +1592,129 @@
       body * {
         box-shadow: none !important;
         text-shadow: none !important;
+        color: #000000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
 
-      header,
       .no-print,
       .floating-format-toolbar,
       .theme-dropdown-menu,
-      .expanded-detail-row {
+      .expanded-detail-row,
+      [class*="print:hidden"] {
         display: none !important;
       }
 
-      main,
-      main > div:not(.no-print),
-      .fade-in-up,
-      .overflow-x-auto {
+      /* 本 app 的 main 被包在 header.no-print 內；列印時必須保留外層容器，只隱藏 header 工具列。 */
+      header.no-print {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+        position: static !important;
+      }
+      header.no-print > div:first-child {
+        display: none !important;
+      }
+      .fade-in-up {
+        opacity: 1 !important;
+        animation: none !important;
+        transform: none !important;
+      }
+
+      main {
         width: 100% !important;
         max-width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
         overflow: visible !important;
-        border: none !important;
         background: #ffffff !important;
       }
+
+      main > div:not(.no-print),
+      .fade-in-up,
+      .overflow-x-auto,
+      .status-list-print-area,
+      .status-list-page,
+      .status-list-section {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 0 8px 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        border-color: #cbd5e1 !important;
+        background: #ffffff !important;
+      }
+
+      body::before {
+        content: "海事法規、外來信息辨識和執行追蹤系統｜" attr(data-print-title);
+        display: block !important;
+        text-align: center !important;
+        font-size: 16px !important;
+        font-weight: 900 !important;
+        margin: 0 0 6px 0 !important;
+        padding: 0 0 5px 0 !important;
+        border-bottom: 1px solid #cbd5e1 !important;
+      }
+
+      [class*="hidden print:block"] { display: block !important; }
+      [class*="hidden print:inline-block"] { display: inline-block !important; }
+      .print\:block { display: block !important; }
+      .print\:inline-block { display: inline-block !important; }
+      .print\:inline { display: inline !important; }
+
+      button,
+      input[type="file"],
+      .theme-dropdown-menu,
+      .app-tabs,
+      .priority-filter-button {
+        display: none !important;
+      }
+
+      input:not([type="file"]),
+      textarea,
+      select,
+      [contenteditable="true"],
+      [contenteditable=""] {
+        display: block !important;
+        width: 100% !important;
+        min-height: auto !important;
+        height: auto !important;
+        border: 0 !important;
+        border-bottom: 1px solid #d1d5db !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        padding: 1px 0 !important;
+        margin: 0 !important;
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
+        font-size: inherit !important;
+        line-height: 1.25 !important;
+        white-space: pre-wrap !important;
+        overflow: visible !important;
+        resize: none !important;
+      }
+
+      select {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+      }
+
+      textarea {
+        min-height: 28px !important;
+      }
+
+      h1, h2, h3, h4, h5 {
+        color: #000000 !important;
+        break-after: avoid !important;
+        page-break-after: avoid !important;
+      }
+      h2 { font-size: 16px !important; margin: 0 0 4px 0 !important; }
+      h3 { font-size: 13px !important; margin: 0 0 3px 0 !important; }
+      h4, h5 { font-size: 11px !important; margin: 0 0 3px 0 !important; }
+      p { margin: 0 0 3px 0 !important; }
+      a { color: #000000 !important; text-decoration: none !important; word-break: break-all !important; }
 
       table {
         width: 100% !important;
@@ -1625,8 +1726,9 @@
       }
 
       thead { display: table-header-group !important; }
-      tbody.print-avoid-break { break-inside: avoid !important; page-break-inside: avoid !important; }
-      tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+      tbody.print-avoid-break { break-inside: auto !important; page-break-inside: auto !important; }
+      .print-avoid-break { break-inside: auto !important; page-break-inside: auto !important; }
+      tr, article, section, details, .status-list-section { break-inside: auto !important; page-break-inside: auto !important; }
 
       th, td {
         padding: 3px 4px !important;
@@ -1645,30 +1747,62 @@
         text-align: left !important;
       }
 
-      table th:nth-child(1), table td:nth-child(1) { width: 6% !important; text-align: center !important; }
-      table th:nth-child(2), table td:nth-child(2) { width: 13% !important; }
-      table th:nth-child(3), table td:nth-child(3) { width: 29% !important; }
-      table th:nth-child(4), table td:nth-child(4) { width: 16% !important; }
-      table th:nth-child(5), table td:nth-child(5) { width: 36% !important; }
-      table th:nth-child(6), table td:nth-child(6) { display: none !important; }
+      /* 正式任務表格 */
+      table:not(.status-list-table) th:nth-child(1), table:not(.status-list-table) td:nth-child(1) { width: 6% !important; text-align: center !important; }
+      table:not(.status-list-table) th:nth-child(2), table:not(.status-list-table) td:nth-child(2) { width: 13% !important; }
+      table:not(.status-list-table) th:nth-child(3), table:not(.status-list-table) td:nth-child(3) { width: 29% !important; }
+      table:not(.status-list-table) th:nth-child(4), table:not(.status-list-table) td:nth-child(4) { width: 16% !important; }
+      table:not(.status-list-table) th:nth-child(5), table:not(.status-list-table) td:nth-child(5) { width: 36% !important; }
+      table:not(.status-list-table) th:nth-child(6), table:not(.status-list-table) td:nth-child(6) { display: none !important; }
 
-      input, textarea, select, button, [contenteditable="true"] {
-        display: none !important;
+      /* 狀態清單獨立欄寬，避免被正式任務表格規則誤傷 */
+      .status-list-table { font-size: 8.5px !important; table-layout: fixed !important; }
+      .status-list-table th:nth-child(1), .status-list-table td:nth-child(1) { width: 7% !important; }
+      .status-list-table th:nth-child(2), .status-list-table td:nth-child(2) { width: 40% !important; }
+      .status-list-table th:nth-child(3), .status-list-table td:nth-child(3) { width: 9% !important; }
+      .status-list-table th:nth-child(4), .status-list-table td:nth-child(4) { width: 9% !important; }
+      .status-list-table th:nth-child(5), .status-list-table td:nth-child(5) { width: 12% !important; }
+      .status-list-table th:nth-child(6), .status-list-table td:nth-child(6) { width: 15% !important; }
+      .status-list-table th:nth-child(7), .status-list-table td:nth-child(7) { width: 8% !important; }
+
+      table svg,
+      .status-list-table svg {
+        width: 12px !important;
+        height: 12px !important;
       }
 
-      .print\:block,
-      .print\:inline-block,
-      .print\:inline {
-        display: revert !important;
+      /* 統計看板列印：保留圖表，不壓 SVG；縮小卡片間距 */
+      body[data-print-tab="dashboard"] svg {
+        max-width: 220px !important;
+        max-height: 220px !important;
+      }
+      body[data-print-tab="dashboard"] main > div {
+        border: none !important;
+      }
+      body[data-print-tab="dashboard"] .grid {
+        gap: 6px !important;
       }
 
-      [class*="hidden print:block"] { display: block !important; }
-      [class*="hidden print:inline-block"] { display: inline-block !important; }
-      [class*="print:hidden"] { display: none !important; }
+      /* 備選/消息源/PDF/管理中心：改成文件化輸出 */
+      body[data-print-tab="candidates"] article,
+      body[data-print-tab="sources"] article,
+      body[data-print-tab="pdfs"] article,
+      body[data-print-tab="admin"] section,
+      body[data-print-tab="admin"] article {
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 0 !important;
+        padding: 6px !important;
+        margin-bottom: 6px !important;
+        background: #ffffff !important;
+      }
 
-      svg { width: 12px !important; height: 12px !important; }
-      h2 { font-size: 18px !important; margin: 0 0 4px 0 !important; }
-      p { margin: 0 0 3px 0 !important; }
+      body[data-print-tab="candidates"] details { display: block !important; }
+      body[data-print-tab="candidates"] details > summary { display: block !important; font-weight: 800 !important; margin-bottom: 4px !important; }
+
+      svg:not(table svg):not(.status-list-table svg) {
+        color: #000000 !important;
+        stroke: currentColor !important;
+      }
     }
   </style>
 
@@ -3726,15 +3860,20 @@
             };
             // --- 列印 PDF ---
             const handlePrintPDF = () => {
-                // PDF 列印固定輸出清單版面；若停在看板/管理中心，先切到總清單，避免印出錯誤頁面。
-                const shouldPrintList = ['dashboard', 'admin'].includes(activeTab);
-                if (shouldPrintList) {
-                    setActiveTab('all');
-                    setTimeout(() => window.print(), 180);
-                    return;
-                }
-                window.print();
+                // 列印目前頁籤，不再強制跳總清單；每個頁籤由 print CSS 各自處理輸出。
+                const active = TAB_LIST.find(tab => tab.id === activeTab);
+                document.body.setAttribute('data-print-tab', activeTab);
+                document.body.setAttribute('data-print-title', active ? active.label : '列印輸出');
+                setTimeout(() => window.print(), 120);
             };
+            useEffect(() => {
+                const clearPrintState = () => {
+                    document.body.removeAttribute('data-print-tab');
+                    document.body.removeAttribute('data-print-title');
+                };
+                window.addEventListener('afterprint', clearPrintState);
+                return () => window.removeEventListener('afterprint', clearPrintState);
+            }, []);
             // --- Excel 匯出與匯入 ---
             const handleExportExcel = () => {
                 try {
@@ -4471,7 +4610,7 @@
                 const radius = 30;
                 const circumference = 2 * Math.PI * radius;
                 const strokeDashoffset = circumference - (stats.completionRate / 100) * circumference;
-                return (React.createElement("div", { className: "flex flex-col gap-4 h-auto lg:h-[calc(100vh-140px)] print:h-auto fade-in-up no-print" },
+                return (React.createElement("div", { className: "flex flex-col gap-4 h-auto lg:h-[calc(100vh-140px)] print:h-auto fade-in-up" },
                     React.createElement("div", { className: "flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white dark:bg-darkcard p-4 rounded-xl border border-slate-300 dark:border-slate-700 shadow-md shrink-0" },
                         React.createElement("div", { className: "flex flex-wrap items-center gap-3" },
                             React.createElement("span", { className: "text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1" },
@@ -4641,9 +4780,9 @@
                 React.createElement("main", { className: "max-w-[1600px] mx-auto p-4 flex-1 flex flex-col w-full" },
                     !cloudClient && React.createElement("div", { className: "no-print mb-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3 font-bold shadow-sm" },
                         "⚠️ 尚未連接 Supabase 雲端。現在看到的是本機瀏覽器暫存資料，可能不是最新內容；請管理員設定 supabase-config.js 或在管理中心填入 Supabase 設定。"),
-                    (React.createElement("div", { className: "bg-white dark:bg-darkcard rounded-xl shadow-md border border-slate-300 dark:border-slate-600 p-4 mb-4 space-y-4 shrink-0 no-print" },
-                        React.createElement("div", { className: "flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4" },
-                            React.createElement("div", { className: "app-tabs flex flex-wrap bg-slate-100 dark:bg-slate-800 rounded-lg p-1.5 w-full xl:w-fit gap-1 overflow-visible border border-slate-200 dark:border-slate-700" }, TAB_LIST.map(tab => (React.createElement("button", { key: tab.id, onClick: () => tab.id === 'admin' ? requestAdminAccess() : setActiveTab(tab.id), title: tab.title, className: `flex-1 lg:flex-none flex items-center justify-center gap-1.5 py-2 px-3 rounded-md font-bold transition-all text-[13px] whitespace-nowrap ${activeTab === tab.id ? `app-tab-active ${currentTheme.color} text-white shadow-md` : 'app-tab-idle text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/30'}` },
+                    (React.createElement("div", { className: "bg-white dark:bg-darkcard rounded-xl shadow-md border border-slate-300 dark:border-slate-600 p-4 mb-4 space-y-4 shrink-0" },
+                                            React.createElement("div", { className: "no-print flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4" },
+                            React.createElement("div", { className: "app-tabs flex flex-wrap bg-slate-100 dark:bg-slate-800 rounded-lg p-1.5 w-full xl:w-fit gap-1 overflow-visible border border-slate-200 dark:border-slate-700" }, TAB_LIST.map(tab => (React.createElement("button", { key: tab.id, 'data-tab-id': tab.id, onClick: () => tab.id === 'admin' ? requestAdminAccess() : setActiveTab(tab.id), title: tab.title, className: `flex-1 lg:flex-none flex items-center justify-center gap-1.5 py-2 px-3 rounded-md font-bold transition-all text-[13px] whitespace-nowrap ${activeTab === tab.id ? `app-tab-active ${currentTheme.color} text-white shadow-md` : 'app-tab-idle text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/30'}` },
                                 tab.icon,
                                 React.createElement("span", { className: "hidden sm:inline flex items-center" },
                                     tab.label,
@@ -4660,7 +4799,7 @@
                                     React.createElement("input", { type: "text", placeholder: "\u95DC\u9375\u8A5E\u641C\u7D22 (\u6A19\u984C, \u5167\u5BB9...)", value: searchQuery, onChange: (e) => setSearchQuery(e.target.value), className: `w-full pl-9 pr-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-lg text-xs focus:outline-none ${currentTheme.ring} focus:border-transparent transition-colors text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500` }),
                                     React.createElement("div", { className: "absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" },
                                         React.createElement(IconSearch, { size: 18 }))))),
-                        React.createElement("div", { className: `${DATA_MANAGEMENT_TABS.includes(activeTab) ? 'hidden' : 'flex'} flex-wrap items-center gap-2 pt-4 border-t border-slate-200 dark:border-slate-700` },
+                        React.createElement("div", { className: `${DATA_MANAGEMENT_TABS.includes(activeTab) ? 'hidden' : 'flex'} no-print flex-wrap items-center gap-2 pt-4 border-t border-slate-200 dark:border-slate-700` },
                             React.createElement("span", { className: "text-sm font-bold text-slate-700 dark:text-slate-200 mr-2 flex items-center gap-1" },
                                 React.createElement(IconFilter, { size: 18, className: "text-slate-500 dark:text-slate-400" }),
                                 "\u512A\u5148\u7D1A\u5206\u4F48 (\u591A\u9078):"),
@@ -4672,7 +4811,7 @@
                                     p,
                                     React.createElement("span", { className: "bg-black/10 dark:bg-white/20 px-2 py-0.5 rounded-full text-xs leading-none inline-block min-w-[20px] text-center font-bold" }, count)));
                             })),
-                        React.createElement("div", { className: `${DATA_MANAGEMENT_TABS.includes(activeTab) ? 'hidden' : 'flex'} flex-wrap items-center gap-3 pt-3` },
+                        React.createElement("div", { className: `${DATA_MANAGEMENT_TABS.includes(activeTab) ? 'hidden' : 'flex'} no-print flex-wrap items-center gap-3 pt-3` },
                             React.createElement("span", { className: "text-sm font-bold text-slate-700 dark:text-slate-200 mr-2 pl-6" }, "\u5176\u4ED6\u7BE9\u9078:"),
                             renderMultiFilter('categories', '涉及分類', CATEGORIES),
                             renderMultiFilter('department', '涉及部門', DEPARTMENTS),
