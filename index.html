@@ -3306,7 +3306,8 @@
                     alert('請至少填寫「法規/外來信息項目標題」！');
                     return;
                 }
-                const candidate = buildCandidate({ ...newTaskForm, id: '', createdAt: Date.now() }, { importType: 'manual', importSource: '新增窗口', sourceUrl: newTaskUrl, notes: '由新增窗口建立，需管理員確認後才會進入正式清單。' });
+                const candidateImportType = String(newTaskUrl || '').trim() ? 'url' : 'manual';
+                const candidate = buildCandidate({ ...newTaskForm, id: '', createdAt: Date.now() }, { importType: candidateImportType, importSource: candidateImportType === 'url' ? '新增窗口網址抓取' : '新增窗口', sourceUrl: newTaskUrl, notes: '由新增窗口建立，需管理員確認後才會進入正式清單。' });
                 const applied = updateCandidateItems(prev => [candidate, ...prev], `新增備選項目「${stripHtmlForText(candidate.task.title).slice(0, 40)}」`);
                 if (applied) {
                     setNewTaskModalOpen(false);
@@ -3315,6 +3316,7 @@
                     setActiveTab('candidates');
                 }
             };
+
             const fetchUrlIntoNewTask = async () => {
                 const url = String(newTaskUrl || '').trim();
                 if (!url) { alert('請先輸入網址。'); return; }
