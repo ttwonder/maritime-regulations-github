@@ -129,7 +129,7 @@ on public.app_state
 for select
 using (
   public.app_current_role() in ('admin', 'owner')
-  or key in ('tasks', 'operator_roster', 'personnel_roles', 'site_access_password')
+  or key in ('tasks', 'candidate_items', 'message_sources', 'pdf_library', 'operator_roster', 'personnel_roles', 'site_access_password')
 );
 
 drop policy if exists "editors_write_state" on public.app_state;
@@ -149,7 +149,7 @@ with check (public.app_current_role() in ('admin', 'owner'));
 
 -- 操作員不登入 Supabase；前端會要求其從預設名單選擇「部門/姓名」，
 -- 然後以 operator:部門/姓名 寫入 audit_logs。管理員也可由前端人員名單辨識。
--- 為支援此模式，匿名訪客只允許更新 tasks。
+-- 為支援此模式，匿名訪客只允許更新 tasks；備選項目/消息源/PDF資料仍需 owner/admin 維護。
 drop policy if exists "operators_insert_tasks_state" on public.app_state;
 create policy "operators_insert_tasks_state"
 on public.app_state

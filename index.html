@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>海事法規、規定辨識和執行追蹤系統</title>
+  <title>海事法規、外來信息辨識和執行追蹤系統</title>
   
   <!-- 載入 React 核心 -->
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"
@@ -31,6 +31,10 @@
   <!-- Excel 匯出套件；若載入失敗，只會影響匯出 Excel，不影響主畫面 -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"
     onerror="this.onerror=null;this.src='https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx.min.js';"></script>
+
+  <!-- PDF 文字提取：用於 PDF 導入頁；若載入失敗，仍可人工貼上或記錄 PDF URL -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"
+    onerror="console.warn('pdf.js 載入失敗，PDF 自動讀取將不可用');"></script>
 
   <!-- Supabase：GitHub Pages 靜態發布時使用 Supabase Auth / Database 做權限、雲端資料與可查詢 LOG -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
@@ -2156,8 +2160,13 @@
         const REGIONS = ['全球', '歐盟 (EU)', '美國 (USA)', '英國 (UK)', '中國 (China)', '新加坡 (Singapore)', '澳大利亞 (AUS)', '韓國 (KR)', '日本 (JP)', '其他區域'];
         const SHIP_TYPES = ['所有船舶', '貨櫃船', '散裝船', '液化氣船', '客船', '油輪', 'Ro-Ro', '其他'];
         const CATEGORIES = ['環境保護', '航行安全', '設備要求', '船員管理', '網路安全', '溫室氣體與排放', '營運與合規', '其他'];
+        const SOURCE_TYPES = ['官方網站', '主管機關新聞', '通函/決議', 'PDF公告', 'RSS/消息頁', '其他'];
+        const DATA_MANAGEMENT_TABS = ['dashboard', 'admin', 'candidates', 'sources', 'pdfs'];
         const TAB_LIST = [
             { id: 'dashboard', label: '統計看板', icon: React.createElement(IconBarChart, { size: 14 }) },
+            { id: 'candidates', label: '備選項目', icon: React.createElement(IconAlertCircle, { size: 14 }) },
+            { id: 'sources', label: '消息源', icon: React.createElement(IconList, { size: 14 }) },
+            { id: 'pdfs', label: 'PDF導入', icon: React.createElement(IconPaperclip, { size: 14 }) },
             { id: 'status_list', label: '狀態清單', icon: React.createElement(IconList, { size: 14 }) },
             { id: 'all', label: '總清單', icon: React.createElement(IconList, { size: 14 }) },
             { id: 'in_progress', label: '進行中', icon: React.createElement(IconClock, { size: 14 }) },
@@ -2319,6 +2328,26 @@
             const [actualCompleteDate, setActualCompleteDate] = useState(new Date().toISOString().split('T')[0]);
             const [newTaskModalOpen, setNewTaskModalOpen] = useState(false);
             const [newTaskForm, setNewTaskForm] = useState({});
+            const [newTaskUrl, setNewTaskUrl] = useState('');
+            const [newTaskUrlStatus, setNewTaskUrlStatus] = useState('');
+            const [candidateItems, setCandidateItems] = useState(() => {
+                try { const parsed = JSON.parse(localStorage.getItem('maritime_candidate_items') || '[]'); return Array.isArray(parsed) ? parsed : []; }
+                catch (_) { return []; }
+            });
+            const [messageSources, setMessageSources] = useState(() => {
+                try { const parsed = JSON.parse(localStorage.getItem('maritime_message_sources') || '[]'); return Array.isArray(parsed) ? parsed : []; }
+                catch (_) { return []; }
+            });
+            const [pdfLibrary, setPdfLibrary] = useState(() => {
+                try { const parsed = JSON.parse(localStorage.getItem('maritime_pdf_library') || '[]'); return Array.isArray(parsed) ? parsed : []; }
+                catch (_) { return []; }
+            });
+            const [sourceDraft, setSourceDraft] = useState({ name: '', url: '', type: '官方網站', notes: '' });
+            const [sourceStatus, setSourceStatus] = useState('');
+            const [pdfUrlInput, setPdfUrlInput] = useState('');
+            const [pdfStatus, setPdfStatus] = useState('尚未導入 PDF');
+            const [pdfTextPreview, setPdfTextPreview] = useState('');
+            const pdfFileInputRef = useRef(null);
             const [themeDropdownOpen, setThemeDropdownOpen] = useState(false);
             const [expandedRows, setExpandedRows] = useState(new Set());
             const [openDropdownId, setOpenDropdownId] = useState(null);
@@ -2377,11 +2406,11 @@
             const pendingMutationRef = useRef(null);
             const translatedTextNodesRef = useRef(new Map());
             const UI_TRANSLATIONS = {
-                '統計看板': 'Dashboard', '狀態清單': 'Status List', '狀態': 'Status', '緊急': 'Urgent', '高': 'High', '中': 'Medium', '低': 'Low', '需要關注/資源': 'Needs Attention/Resources', '暫不適用定期複查': 'Deferred Review', '總清單': 'All Items', '進行中': 'In Progress', '已完成': 'Completed', '暫不適用': 'Deferred', '不適用': 'N/A', '管理中心': 'Admin Center',
+                '統計看板': 'Dashboard', '備選項目': 'Candidate Items', '消息源': 'Message Sources', 'PDF導入': 'PDF Import', '狀態清單': 'Status List', '狀態': 'Status', '緊急': 'Urgent', '高': 'High', '中': 'Medium', '低': 'Low', '需要關注/資源': 'Needs Attention/Resources', '暫不適用定期複查': 'Deferred Review', '總清單': 'All Items', '進行中': 'In Progress', '已完成': 'Completed', '暫不適用': 'Deferred', '不適用': 'N/A', '管理中心': 'Admin Center',
                 '主題': 'Theme', '新增': 'Add', '匯入': 'Import', 'Excel匯出': 'Export Excel', 'PDF列印': 'Print PDF', '登入/管理': 'Login/Admin', '擁有者': 'Owner',
                 '最新到最舊': 'Newest First', '最舊到最舊': 'Oldest First', '最舊到最新': 'Oldest First', '關鍵詞搜索 (標題, 內容...)': 'Keyword search (title, content...)',
                 '優先級分佈 (多選):': 'Priority Filter (multi-select):', '其他篩選:': 'Other Filters:', '涉及分類': 'Categories', '涉及部門': 'Departments', '適用地區': 'Regions', '適用船型': 'Ship Types',
-                '海事法規、規定辨識和執行追蹤系統': 'Maritime Regulations Identification and Execution Tracking System',
+                '海事法規、外來信息辨識和執行追蹤系統': 'Maritime Regulations and External Information Identification and Execution Tracking System',
                 '編號 / 優先級 / 來源': 'ID / Priority / Source', '法規/外來信息項目與簡要要求 (含分類)': 'Regulation / External Information and Requirements', '時程 / 負責人 / 部門': 'Schedule / PIC / Dept.', '現狀 / 執行進度與計劃 / 最終結果': 'Status / Progress / Final Result', '操作': 'Actions',
                 '預計完成日': 'Target Date', '實際完成日': 'Actual Completion Date', '負責人': 'PIC', '現狀': 'Current Status', '執行進度/計劃': 'Progress / Plan', '最終執行結果': 'Final Result', '標記完成': 'Mark Complete', '恢復進行中': 'Reopen', '展開詳情': 'Expand', '收合詳情': 'Collapse',
                 '生效日期': 'Effective Date', '適用地區範圍 (多選)': 'Applicable Regions', '適用船型 (多選)': 'Applicable Ship Types', '需要 MOC': 'MOC Required', '不需要 MOC': 'MOC Not Required', '來源出處 (通函/決議號等)': 'Source Reference', '內部備註': 'Internal Notes', '具體條款 / 法規原文': 'Original Clause / Text', '參考附件': 'Attachments', '上傳文件': 'Upload File', '目前無附件': 'No attachments',
@@ -2420,7 +2449,7 @@
                     }
                 });
             };
-            useEffect(() => { localStorage.setItem('maritime_ui_lang', uiLang); setTimeout(applyUiTranslation, 0); }, [uiLang, activeTab, tasks, logs, members, newTaskModalOpen, modalOpen, filters, dashFilters, logPage, isDark]);
+            useEffect(() => { localStorage.setItem('maritime_ui_lang', uiLang); setTimeout(applyUiTranslation, 0); }, [uiLang, activeTab, tasks, candidateItems, messageSources, pdfLibrary, logs, members, newTaskModalOpen, modalOpen, filters, dashFilters, logPage, isDark]);
             useEffect(() => { currentOperatorRef.current = currentOperator; }, [currentOperator]);
             useEffect(() => {
                 localStorage.setItem('maritime_operator_roster', JSON.stringify(operatorRoster));
@@ -2450,6 +2479,98 @@
                 applicableShipTypes: Array.isArray(t.applicableShipTypes) ? t.applicableShipTypes : (t.applicableShipTypes ? [t.applicableShipTypes] : []),
                                 requiresMoc: !!t.requiresMoc
             })) : [];
+
+            const makeBlankTaskDraft = (id = generateId(tasks)) => ({
+                id,
+                categories: [], title: '', description: '', priority: ['中'], source: 'IMO', currentStatus: '',
+                dueDate: '', progress: '', finalResult: '', departments: [], assignee: '', status: 'in_progress',
+                completeDate: null, effectiveDate: '', applicableRegions: [], applicableShipTypes: [], requiresMoc: false,
+                originalText: '', sourceReference: '', remarks: '', attachments: []
+            });
+            const normalizeCandidateItems = (list) => Array.isArray(list) ? list.map((item, index) => ({
+                id: item.id || `C-${Date.now()}-${index}`,
+                status: item.status || 'draft',
+                importType: item.importType || 'manual',
+                importSource: item.importSource || '',
+                sourceUrl: item.sourceUrl || '',
+                createdAt: item.createdAt || Date.now(),
+                updatedAt: item.updatedAt || item.createdAt || Date.now(),
+                notes: item.notes || '',
+                task: normalizeTaskList([item.task || item]).map(t => ({ ...makeBlankTaskDraft(item.task && item.task.id ? item.task.id : undefined), ...t, id: t.id || '' }))[0]
+            })) : [];
+            const normalizeMessageSources = (list) => Array.isArray(list) ? list.map((item, index) => ({
+                id: item.id || `SRC-${Date.now()}-${index}`,
+                name: item.name || item.title || '未命名消息源',
+                url: item.url || '',
+                type: item.type || '官方網站',
+                notes: item.notes || '',
+                active: item.active !== false,
+                lastCheckedAt: item.lastCheckedAt || '',
+                lastResult: item.lastResult || '',
+                createdAt: item.createdAt || Date.now()
+            })) : [];
+            const normalizePdfLibrary = (list) => Array.isArray(list) ? list.map((item, index) => ({
+                id: item.id || `PDF-${Date.now()}-${index}`,
+                title: item.title || item.name || '未命名 PDF',
+                url: item.url || '',
+                source: item.source || '',
+                notes: item.notes || '',
+                status: item.status || 'new',
+                lastImportedAt: item.lastImportedAt || '',
+                createdAt: item.createdAt || Date.now()
+            })) : [];
+            const stripHtmlTags = (html) => stripHtmlForText(html || '').replace(/\s+/g, ' ').trim();
+            const getTextPreview = (text, max = 900) => {
+                const clean = String(text || '').replace(/\r/g, '\n').replace(/[\t ]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+                return clean.length > max ? clean.slice(0, max) + '…' : clean;
+            };
+            const extractPageInfo = (html, url = '') => {
+                const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+                const title = (doc.querySelector('meta[property="og:title"]')?.getAttribute('content') || doc.querySelector('title')?.textContent || doc.querySelector('h1')?.textContent || url || '未命名外來信息').trim();
+                const description = (doc.querySelector('meta[name="description"]')?.getAttribute('content') || doc.querySelector('meta[property="og:description"]')?.getAttribute('content') || '').trim();
+                doc.querySelectorAll('script,style,noscript,svg,nav,footer,header').forEach(el => el.remove());
+                const bodyText = getTextPreview(doc.body ? doc.body.innerText : html, 1800);
+                return { title, description: description || bodyText.slice(0, 420), bodyText };
+            };
+            const inferTaskDraftFromText = (text, sourceLabel = '外來信息', sourceUrl = '', importType = 'manual') => {
+                const clean = String(text || '').replace(/\s+/g, ' ').trim();
+                const title = clean.split(/[。.!?\n]/).find(x => x.trim().length > 8)?.trim().slice(0, 120) || sourceLabel || '待確認外來信息';
+                const lower = clean.toLowerCase();
+                const cats = [];
+                if (/emission|carbon|ghg|cii|fuel|排放|碳|溫室/.test(lower)) cats.push('環境保護', '溫室氣體與排放');
+                if (/cyber|網路|資安/.test(lower)) cats.push('網路安全');
+                if (/crew|seafarer|船員|休息/.test(lower)) cats.push('船員管理');
+                if (/equipment|certificate|設備|證書|檢驗/.test(lower)) cats.push('設備要求');
+                if (/navigation|航行|route|chart/.test(lower)) cats.push('航行安全');
+                const uniqueCats = [...new Set(cats.length ? cats : ['營運與合規'])];
+                const priority = /urgent|immediate|緊急|立即|mandatory|強制|罰/.test(lower) ? ['高'] : ['中'];
+                return {
+                    ...makeBlankTaskDraft(''),
+                    categories: uniqueCats,
+                    title,
+                    description: getTextPreview(clean, 520),
+                    priority,
+                    source: SOURCES.includes(sourceLabel) ? sourceLabel : '其他',
+                    currentStatus: '備選項目：待管理員人工確認',
+                    progress: '請核對官方來源、適用範圍、生效日、負責部門與是否需要 MOC 後，再確認轉正式項目。',
+                    originalText: getTextPreview(clean, 3000),
+                    sourceReference: sourceUrl || sourceLabel,
+                    remarks: `由${importType === 'pdf' ? 'PDF導入' : importType === 'source' ? '消息源抓取' : '網址抓取'}建立，尚未確認為正式項目。`,
+                    applicableRegions: ['全球'],
+                    applicableShipTypes: ['所有船舶']
+                };
+            };
+            const buildCandidate = (taskDraft, meta = {}) => ({
+                id: `C-${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}-${Math.random().toString(36).slice(2, 6)}`,
+                status: 'draft',
+                importType: meta.importType || 'manual',
+                importSource: meta.importSource || '',
+                sourceUrl: meta.sourceUrl || taskDraft.sourceReference || '',
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                notes: meta.notes || '',
+                task: { ...makeBlankTaskDraft(''), ...taskDraft, id: '' }
+            });
 
             const isPlaceholderSupabaseConfig = (cfg) => !cfg || !cfg.url || !cfg.anonKey || String(cfg.url).includes('YOUR_') || String(cfg.anonKey).includes('YOUR_');
             const getStoredSupabaseConfig = () => {
@@ -2654,9 +2775,12 @@
             const loadPublicCloudState = async (client) => {
                 if (!client) return;
                 try {
-                    const { data: rows, error } = await client.from('app_state').select('key,value').in('key', ['tasks', 'operator_roster', 'personnel_roles', 'site_access_password']);
+                    const { data: rows, error } = await client.from('app_state').select('key,value').in('key', ['tasks', 'candidate_items', 'message_sources', 'pdf_library', 'operator_roster', 'personnel_roles', 'site_access_password']);
                     if (error) throw error;
                     const taskRow = (rows || []).find(r => r.key === 'tasks');
+                    const candidateRow = (rows || []).find(r => r.key === 'candidate_items');
+                    const sourceRow = (rows || []).find(r => r.key === 'message_sources');
+                    const pdfRow = (rows || []).find(r => r.key === 'pdf_library');
                     const rosterRow = (rows || []).find(r => r.key === 'operator_roster');
                     const rolesRow = (rows || []).find(r => r.key === 'personnel_roles');
                     const passwordRow = (rows || []).find(r => r.key === 'site_access_password');
@@ -2665,6 +2789,9 @@
                         setTasks(cloudTasks);
                         localStorage.setItem('maritime_tasks', JSON.stringify(cloudTasks));
                     }
+                    if (candidateRow && candidateRow.value && Array.isArray(candidateRow.value.items)) { const next = normalizeCandidateItems(candidateRow.value.items); setCandidateItems(next); localStorage.setItem('maritime_candidate_items', JSON.stringify(next)); }
+                    if (sourceRow && sourceRow.value && Array.isArray(sourceRow.value.sources)) { const next = normalizeMessageSources(sourceRow.value.sources); setMessageSources(next); localStorage.setItem('maritime_message_sources', JSON.stringify(next)); }
+                    if (pdfRow && pdfRow.value && Array.isArray(pdfRow.value.pdfs)) { const next = normalizePdfLibrary(pdfRow.value.pdfs); setPdfLibrary(next); localStorage.setItem('maritime_pdf_library', JSON.stringify(next)); }
                     if (rosterRow && rosterRow.value && rosterRow.value.roster) setOperatorRoster(normalizeOperatorRoster(rosterRow.value.roster));
                     if (rolesRow && rolesRow.value && rolesRow.value.roles) setPersonnelRoles(normalizePersonnelRoles(rolesRow.value.roles, rosterRow && rosterRow.value && rosterRow.value.roster ? rosterRow.value.roster : operatorRoster));
                     if (passwordRow && passwordRow.value && passwordRow.value.password) { setSiteAccessPassword(String(passwordRow.value.password)); setSitePasswordDraft(String(passwordRow.value.password)); }
@@ -2707,6 +2834,13 @@
                     } else {
                         setCloudStatus('雲端尚未初始化；請管理員先上傳/同步資料。');
                     }
+                    const { data: auxRows } = await client.from('app_state').select('key,value').in('key', ['candidate_items', 'message_sources', 'pdf_library']);
+                    const candidateRow = (auxRows || []).find(r => r.key === 'candidate_items');
+                    const sourceRow = (auxRows || []).find(r => r.key === 'message_sources');
+                    const pdfRow = (auxRows || []).find(r => r.key === 'pdf_library');
+                    if (candidateRow && candidateRow.value && Array.isArray(candidateRow.value.items)) { const next = normalizeCandidateItems(candidateRow.value.items); setCandidateItems(next); localStorage.setItem('maritime_candidate_items', JSON.stringify(next)); }
+                    if (sourceRow && sourceRow.value && Array.isArray(sourceRow.value.sources)) { const next = normalizeMessageSources(sourceRow.value.sources); setMessageSources(next); localStorage.setItem('maritime_message_sources', JSON.stringify(next)); }
+                    if (pdfRow && pdfRow.value && Array.isArray(pdfRow.value.pdfs)) { const next = normalizePdfLibrary(pdfRow.value.pdfs); setPdfLibrary(next); localStorage.setItem('maritime_pdf_library', JSON.stringify(next)); }
                     await loadAuditLogs(client);
                     await loadOperatorRoster(client);
                     const { data: rolesRow } = await client.from('app_state').select('value').eq('key', 'personnel_roles').maybeSingle();
@@ -2910,6 +3044,63 @@
                 });
                 return true;
             };
+            const persistAppStateKey = async (key, value, summary, entityType = key) => {
+                if (!cloudClient || !cloudSession || !['owner','admin'].includes(cloudRole)) return;
+                try {
+                    const actor = cloudSession.user;
+                    const { error: stateError } = await cloudClient.from('app_state').upsert({
+                        key,
+                        value: { ...value, updatedAt: new Date().toISOString(), version: 1 },
+                        updated_by: actor.id,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'key' });
+                    if (stateError) throw stateError;
+                    await cloudClient.from('audit_logs').insert({
+                        actor_id: actor.id,
+                        actor_email: actor.email,
+                        action: `save_${key}`,
+                        entity_type: entityType,
+                        entity_id: key,
+                        summary,
+                        new_data: value
+                    });
+                    if (activeTab === 'admin') loadAuditLogs();
+                } catch (err) {
+                    console.warn(`Save ${key} warning:`, err);
+                    setCloudStatus(`${key} 雲端保存失敗：` + (err.message || JSON.stringify(err)));
+                }
+            };
+            const updateCandidateItems = (updater, summary = '更新備選項目') => {
+                if (!canAdminCloud()) return openOperatorIdentityModal(summary, () => updateCandidateItems(updater, summary));
+                setCandidateItems(prev => {
+                    const next = normalizeCandidateItems(typeof updater === 'function' ? updater(prev) : updater);
+                    localStorage.setItem('maritime_candidate_items', JSON.stringify(next));
+                    persistAppStateKey('candidate_items', { items: next, count: next.length }, summary, 'candidate_items');
+                    return next;
+                });
+                return true;
+            };
+            const updateMessageSources = (updater, summary = '更新消息源') => {
+                if (!canAdminCloud()) return openOperatorIdentityModal(summary, () => updateMessageSources(updater, summary));
+                setMessageSources(prev => {
+                    const next = normalizeMessageSources(typeof updater === 'function' ? updater(prev) : updater);
+                    localStorage.setItem('maritime_message_sources', JSON.stringify(next));
+                    persistAppStateKey('message_sources', { sources: next, count: next.length }, summary, 'message_sources');
+                    return next;
+                });
+                return true;
+            };
+            const updatePdfLibrary = (updater, summary = '更新 PDF 資料') => {
+                if (!canAdminCloud()) return openOperatorIdentityModal(summary, () => updatePdfLibrary(updater, summary));
+                setPdfLibrary(prev => {
+                    const next = normalizePdfLibrary(typeof updater === 'function' ? updater(prev) : updater);
+                    localStorage.setItem('maritime_pdf_library', JSON.stringify(next));
+                    persistAppStateKey('pdf_library', { pdfs: next, count: next.length }, summary, 'pdf_library');
+                    return next;
+                });
+                return true;
+            };
+
             // 所有年份選項 (從資料中提取)
             const allYears = useMemo(() => {
                 const yrs = new Set(tasks.map(t => t.effectiveDate ? String(t.effectiveDate).substring(0, 4) : '').filter(Boolean));
@@ -2919,6 +3110,9 @@
             const tabCounts = useMemo(() => {
                 return {
                     all: tasks.length,
+                    candidates: candidateItems.length,
+                    sources: messageSources.length,
+                    pdfs: pdfLibrary.length,
                     status_list: tasks.length,
                     in_progress: tasks.filter(t => t.status === 'in_progress' && !getPriorityArr(t.priority).some(p => ['不適用', '暫不適用定期複查'].includes(p))).length,
                     completed: tasks.filter(t => t.status === 'completed').length,
@@ -3079,6 +3273,8 @@
             };
             // --- 新增任務處理 ---
             const handleOpenNewTask = () => {
+                setNewTaskUrl('');
+                setNewTaskUrlStatus('');
                 setNewTaskForm({
                     id: generateId(tasks),
                     categories: [],
@@ -3110,13 +3306,157 @@
                     alert('請至少填寫「法規/外來信息項目標題」！');
                     return;
                 }
-                const finalTask = { ...newTaskForm, createdAt: Date.now() };
-                const applied = updateTasksList(prev => [finalTask, ...prev], `新增項目 ${finalTask.id}`);
+                const candidate = buildCandidate({ ...newTaskForm, id: '', createdAt: Date.now() }, { importType: 'manual', importSource: '新增窗口', sourceUrl: newTaskUrl, notes: '由新增窗口建立，需管理員確認後才會進入正式清單。' });
+                const applied = updateCandidateItems(prev => [candidate, ...prev], `新增備選項目「${stripHtmlForText(candidate.task.title).slice(0, 40)}」`);
                 if (applied) {
                     setNewTaskModalOpen(false);
-                    if (activeTab === 'dashboard')
-                        setActiveTab('all');
+                    setNewTaskUrl('');
+                    setNewTaskUrlStatus('');
+                    setActiveTab('candidates');
                 }
+            };
+            const fetchUrlIntoNewTask = async () => {
+                const url = String(newTaskUrl || '').trim();
+                if (!url) { alert('請先輸入網址。'); return; }
+                setNewTaskUrlStatus('正在嘗試讀取網址內容……');
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const html = await response.text();
+                    const info = extractPageInfo(html, url);
+                    setNewTaskForm(prev => ({
+                        ...prev,
+                        title: prev.title || info.title,
+                        description: prev.description || info.description,
+                        originalText: prev.originalText || info.bodyText,
+                        sourceReference: prev.sourceReference || url,
+                        remarks: [prev.remarks, '由網址自動抓取初稿；請人工核對內容、來源與生效日期。'].filter(Boolean).join('<br>')
+                    }));
+                    setNewTaskUrlStatus('已抓取並填入初稿。請人工核對後加入備選項目。');
+                } catch (err) {
+                    setNewTaskUrlStatus('瀏覽器無法直接讀取此網址：' + (err.message || String(err)) + '。常見原因是官方網站 CORS/防盜鏈限制；可改用人工貼上內容或 PDF 導入。');
+                }
+            };
+            const confirmCandidateToTask = (candidate) => {
+                if (!candidate || !candidate.task) return;
+                if (!canAdminCloud()) { openOperatorIdentityModal('確認備選項目轉正式', () => confirmCandidateToTask(candidate)); return; }
+                const title = stripHtmlForText(candidate.task.title || '未命名項目');
+                if (!window.confirm(`確認將「${title}」轉為正式項目，加入總清單與狀態清單？`)) return;
+                let createdTask = null;
+                const applied = updateTasksList(prev => {
+                    createdTask = { ...candidate.task, id: generateId(prev), status: candidate.task.status || 'in_progress', createdAt: Date.now(), candidateId: candidate.id };
+                    return [createdTask, ...prev];
+                }, `備選轉正式 ${candidate.id}`);
+                if (applied) {
+                    updateCandidateItems(prev => prev.filter(item => item.id !== candidate.id), `備選項目轉正式 ${createdTask ? createdTask.id : candidate.id}`);
+                    setActiveTab('all');
+                }
+            };
+            const updateCandidateTaskField = (candidateId, field, value) => {
+                updateCandidateItems(prev => prev.map(item => item.id === candidateId ? { ...item, updatedAt: Date.now(), task: { ...item.task, [field]: value } } : item), `修改備選項目 ${candidateId}`);
+            };
+            const deleteCandidate = (candidateId) => {
+                if (!window.confirm('確定刪除此備選項目？')) return;
+                updateCandidateItems(prev => prev.filter(item => item.id !== candidateId), `刪除備選項目 ${candidateId}`);
+            };
+            const addCandidateFromText = (text, meta = {}) => {
+                const candidate = buildCandidate(inferTaskDraftFromText(text, meta.importSource || '外來信息', meta.sourceUrl || '', meta.importType || 'manual'), meta);
+                const ok = updateCandidateItems(prev => [candidate, ...prev], `新增備選項目（${meta.importSource || meta.importType || '外來信息'}）`);
+                if (ok) setActiveTab('candidates');
+                return candidate;
+            };
+            const addMessageSource = () => {
+                const url = String(sourceDraft.url || '').trim();
+                const name = String(sourceDraft.name || '').trim();
+                if (!name || !url) { alert('請填寫消息源名稱與網址。'); return; }
+                const source = { id: `SRC-${Date.now()}`, name, url, type: sourceDraft.type || '官方網站', notes: sourceDraft.notes || '', active: true, createdAt: Date.now(), lastCheckedAt: '', lastResult: '' };
+                const ok = updateMessageSources(prev => [source, ...prev], `新增消息源 ${name}`);
+                if (ok) setSourceDraft({ name: '', url: '', type: '官方網站', notes: '' });
+            };
+            const fetchMessageSource = async (source) => {
+                if (!source || !source.url) return;
+                setSourceStatus(`正在抓取：${source.name}`);
+                try {
+                    const response = await fetch(source.url);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const html = await response.text();
+                    const info = extractPageInfo(html, source.url);
+                    addCandidateFromText(`${info.title}
+${info.description}
+
+${info.bodyText}`, { importType: 'source', importSource: source.name, sourceUrl: source.url, notes: '由消息源手動更新抓取。' });
+                    updateMessageSources(prev => prev.map(item => item.id === source.id ? { ...item, lastCheckedAt: new Date().toISOString(), lastResult: `已抓取並建立備選：${info.title}` } : item), `更新消息源 ${source.name}`);
+                    setSourceStatus(`已從「${source.name}」建立備選項目。`);
+                } catch (err) {
+                    const msg = '抓取失敗：' + (err.message || String(err)) + '。可能是 CORS/防盜鏈限制，請人工打開網址複製內容或使用 PDF 導入。';
+                    updateMessageSources(prev => prev.map(item => item.id === source.id ? { ...item, lastCheckedAt: new Date().toISOString(), lastResult: msg } : item), `消息源抓取失敗 ${source.name}`);
+                    setSourceStatus(msg);
+                }
+            };
+            const deleteMessageSource = (sourceId) => {
+                if (!window.confirm('確定刪除此消息源？')) return;
+                updateMessageSources(prev => prev.filter(item => item.id !== sourceId), `刪除消息源 ${sourceId}`);
+            };
+            const ensurePdfJs = () => {
+                if (!window.pdfjsLib) throw new Error('pdf.js 尚未載入，請檢查網路或改用人工貼上內容。');
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+                return window.pdfjsLib;
+            };
+            const extractPdfArrayBuffer = async (arrayBuffer, label, sourceUrl = '') => {
+                const pdfjs = ensurePdfJs();
+                setPdfStatus(`正在讀取 PDF：${label}`);
+                const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+                const pages = [];
+                for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+                    const page = await pdf.getPage(pageNumber);
+                    const content = await page.getTextContent();
+                    const text = content.items.map(item => item.str || '').join(' ');
+                    pages.push(`--- Page ${pageNumber} ---\n${text}`);
+                }
+                const fullText = pages.join('\n\n');
+                setPdfTextPreview(getTextPreview(fullText, 3000));
+                addCandidateFromText(fullText, { importType: 'pdf', importSource: label, sourceUrl, notes: `PDF 自動讀取 ${pdf.numPages} 頁；需人工核對頁碼、來源與適用範圍。` });
+                setPdfStatus(`已讀取 ${pdf.numPages} 頁，並新增為備選項目。`);
+                return fullText;
+            };
+            const handlePdfFileImport = async (event) => {
+                const file = event.target.files && event.target.files[0];
+                if (!file) return;
+                try {
+                    await extractPdfArrayBuffer(await file.arrayBuffer(), file.name, '');
+                    updatePdfLibrary(prev => [{ id: `PDF-${Date.now()}`, title: file.name, url: '', source: '本機上傳', notes: '本機 PDF 解析建立備選項目；檔案本體不會保存到雲端。', status: 'imported', lastImportedAt: new Date().toISOString(), createdAt: Date.now() }, ...prev], `導入 PDF ${file.name}`);
+                } catch (err) {
+                    setPdfStatus('PDF 讀取失敗：' + (err.message || String(err)) + '。若是掃描件，需要 OCR 後再導入。');
+                } finally {
+                    if (pdfFileInputRef.current) pdfFileInputRef.current.value = '';
+                }
+            };
+            const importPdfFromUrl = async () => {
+                const url = String(pdfUrlInput || '').trim();
+                if (!url) { alert('請先輸入 PDF URL。'); return; }
+                setPdfStatus('正在嘗試下載並讀取 PDF URL……');
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const buffer = await response.arrayBuffer();
+                    const label = url.split('/').pop() || url;
+                    await extractPdfArrayBuffer(buffer, label, url);
+                    updatePdfLibrary(prev => [{ id: `PDF-${Date.now()}`, title: label, url, source: '在線 PDF', notes: '已從 URL 讀取並建立備選項目。', status: 'imported', lastImportedAt: new Date().toISOString(), createdAt: Date.now() }, ...prev], `導入在線 PDF ${label}`);
+                    setPdfUrlInput('');
+                } catch (err) {
+                    setPdfStatus('瀏覽器無法直接讀取此 PDF：' + (err.message || String(err)) + '。通常是官方站 CORS/防盜鏈限制；已可先記錄 PDF 網址，或下載後用「上傳 PDF」導入。');
+                    recordPdfUrlOnly();
+                }
+            };
+            const recordPdfUrlOnly = () => {
+                const url = String(pdfUrlInput || '').trim();
+                if (!url) return;
+                const label = url.split('/').pop() || url;
+                updatePdfLibrary(prev => prev.some(item => item.url === url) ? prev : [{ id: `PDF-${Date.now()}`, title: label, url, source: '在線 PDF', notes: '已記錄 URL，尚未成功自動讀取。', status: 'url_only', lastImportedAt: '', createdAt: Date.now() }, ...prev], `記錄 PDF URL ${label}`);
+            };
+            const deletePdfRecord = (pdfId) => {
+                if (!window.confirm('確定刪除此 PDF 紀錄？')) return;
+                updatePdfLibrary(prev => prev.filter(item => item.id !== pdfId), `刪除 PDF 紀錄 ${pdfId}`);
             };
             // --- 列印 PDF ---
             const handlePrintPDF = () => {
@@ -3755,7 +4095,7 @@
                     React.createElement('div', { className: 'status-list-print-area bg-white dark:bg-darkcard border border-slate-300 dark:border-slate-700 rounded-xl shadow-md p-4' },
                         React.createElement('div', { className: 'flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3 border-b border-slate-200 dark:border-slate-700 pb-3' },
                             React.createElement('div', null,
-                                React.createElement('h2', { className: 'text-xl font-extrabold text-slate-900 dark:text-slate-100' }, '海事法規、規定辨識和執行追蹤系統狀態清單'),
+                                React.createElement('h2', { className: 'text-xl font-extrabold text-slate-900 dark:text-slate-100' }, '海事法規、外來信息辨識和執行追蹤系統狀態清單'),
                                 React.createElement('p', { className: 'text-xs text-slate-500 dark:text-slate-400 mt-1' }, '導出日期：', new Date().toLocaleDateString(), ' ｜ 篩選後共 ', filteredTasks.length, ' 項')
                             ),
                             React.createElement('button', { onClick: handlePrintPDF, className: `no-print flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-bold shadow-sm ${currentTheme.color} ${currentTheme.hoverBg}` },
@@ -3771,6 +4111,94 @@
                     )
                 );
             };
+
+            const renderCandidateItems = () => {
+                const sortedCandidates = [...candidateItems].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                const empty = React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-10 text-center text-slate-500 dark:text-slate-400 font-bold' }, '目前沒有備選項目。');
+                const cards = React.createElement('div', { className: 'grid grid-cols-1 gap-4' }, sortedCandidates.map(item => {
+                    const task = item.task || {};
+                    return React.createElement('article', { key: item.id, className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-sm p-5 space-y-4' },
+                        React.createElement('div', { className: 'flex flex-col lg:flex-row lg:items-start justify-between gap-4' },
+                            React.createElement('div', { className: 'space-y-2 flex-1 min-w-0' },
+                                React.createElement('div', { className: 'flex flex-wrap gap-2 items-center' },
+                                    React.createElement('span', { className: 'px-2 py-1 rounded bg-amber-100 text-amber-800 text-xs font-extrabold' }, item.importType === 'pdf' ? 'PDF導入' : item.importType === 'source' ? '消息源' : item.importType === 'url' ? '網址抓取' : '手動新增'),
+                                    React.createElement('span', { className: 'text-xs text-slate-500 dark:text-slate-400 font-bold' }, new Date(item.createdAt || Date.now()).toLocaleString()),
+                                    item.sourceUrl ? React.createElement('a', { href: item.sourceUrl, target: '_blank', rel: 'noreferrer', className: 'text-xs text-blue-600 dark:text-blue-300 underline break-all' }, '打開來源') : null),
+                                React.createElement('input', { value: stripHtmlForText(task.title || ''), onChange: e => updateCandidateTaskField(item.id, 'title', e.target.value), className: `w-full text-lg font-extrabold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2 ${currentTheme.ring}`, placeholder: '備選項目標題' }),
+                                React.createElement('textarea', { value: stripHtmlForText(task.description || ''), onChange: e => updateCandidateTaskField(item.id, 'description', e.target.value), rows: 3, className: `w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2 ${currentTheme.ring}`, placeholder: '簡要要求 / 摘要' })),
+                            React.createElement('div', { className: 'flex lg:flex-col gap-2 shrink-0' },
+                                React.createElement('button', { onClick: () => confirmCandidateToTask(item), className: `px-4 py-2 rounded-lg text-white font-bold ${currentTheme.color} ${currentTheme.hoverBg}` }, '確認轉正式'),
+                                React.createElement('button', { onClick: () => deleteCandidate(item.id), className: 'px-4 py-2 rounded-lg border border-red-300 text-red-600 dark:text-red-300 font-bold hover:bg-red-50 dark:hover:bg-red-900/20' }, '刪除'))),
+                        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-3 text-sm' },
+                            React.createElement('label', { className: 'font-bold text-slate-700 dark:text-slate-300' }, '來源', React.createElement('select', { value: task.source || '其他', onChange: e => updateCandidateTaskField(item.id, 'source', e.target.value), className: 'mt-1 w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2' }, SOURCES.map(opt => React.createElement('option', { key: opt, value: opt }, opt)))),
+                            React.createElement('label', { className: 'font-bold text-slate-700 dark:text-slate-300' }, '預計完成日', React.createElement('input', { type: 'date', value: task.dueDate || '', onChange: e => updateCandidateTaskField(item.id, 'dueDate', e.target.value), className: 'mt-1 w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2' })),
+                            React.createElement('label', { className: 'font-bold text-slate-700 dark:text-slate-300' }, '生效日期', React.createElement('input', { type: 'date', value: task.effectiveDate || '', onChange: e => updateCandidateTaskField(item.id, 'effectiveDate', e.target.value), className: 'mt-1 w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2' }))),
+                        React.createElement('details', { className: 'text-sm' },
+                            React.createElement('summary', { className: 'cursor-pointer font-bold text-slate-700 dark:text-slate-300' }, '展開原文 / 來源 / 備註'),
+                            React.createElement('div', { className: 'mt-3 grid grid-cols-1 md:grid-cols-2 gap-3' },
+                                React.createElement('textarea', { value: stripHtmlForText(task.originalText || ''), onChange: e => updateCandidateTaskField(item.id, 'originalText', e.target.value), rows: 6, className: 'w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg p-2 font-mono', placeholder: '原文 / 抓取文字' }),
+                                React.createElement('div', { className: 'space-y-3' },
+                                    React.createElement('textarea', { value: stripHtmlForText(task.sourceReference || ''), onChange: e => updateCandidateTaskField(item.id, 'sourceReference', e.target.value), rows: 3, className: 'w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2', placeholder: '來源出處' }),
+                                    React.createElement('textarea', { value: stripHtmlForText(task.remarks || ''), onChange: e => updateCandidateTaskField(item.id, 'remarks', e.target.value), rows: 3, className: 'w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2', placeholder: '內部備註' }))))
+                    );
+                }));
+                return React.createElement('div', { className: 'fade-in-up flex flex-col gap-4' },
+                    React.createElement('section', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5' },
+                        React.createElement('div', { className: 'flex flex-col md:flex-row md:items-center justify-between gap-3' },
+                            React.createElement('div', null,
+                                React.createElement('p', { className: 'text-xs font-extrabold tracking-widest text-amber-600 dark:text-amber-300' }, 'CANDIDATE BUFFER'),
+                                React.createElement('h2', { className: 'text-2xl font-extrabold text-slate-900 dark:text-slate-100' }, '備選項目'),
+                                React.createElement('p', { className: 'text-sm text-slate-600 dark:text-slate-300 mt-1' }, '消息源、PDF導入、網址抓取與新增窗口產生的內容先放在這裡；只有管理員確認後才會進入總清單與狀態清單。')),
+                            React.createElement('button', { onClick: handleOpenNewTask, className: `px-4 py-2 rounded-lg text-white font-bold ${currentTheme.color} ${currentTheme.hoverBg}` }, '手動新增備選'))),
+                    sortedCandidates.length ? cards : empty);
+            };
+
+            const renderMessageSources = () => React.createElement('div', { className: 'fade-in-up flex flex-col gap-4' },
+                React.createElement('section', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5 space-y-4' },
+                    React.createElement('div', null,
+                        React.createElement('p', { className: 'text-xs font-extrabold tracking-widest text-blue-600 dark:text-blue-300' }, 'SOURCE MANAGER'),
+                        React.createElement('h2', { className: 'text-2xl font-extrabold text-slate-900 dark:text-slate-100' }, '消息源管理'),
+                        React.createElement('p', { className: 'text-sm text-slate-600 dark:text-slate-300 mt-1' }, '比照船舶檢查案例平台：先管理來源，再手動抓取最新內容，抓取結果會生成備選項目。')),
+                    React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-5 gap-3' },
+                        React.createElement('input', { value: sourceDraft.name, onChange: e => setSourceDraft({ ...sourceDraft, name: e.target.value }), placeholder: '消息源名稱', className: 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2' }),
+                        React.createElement('input', { value: sourceDraft.url, onChange: e => setSourceDraft({ ...sourceDraft, url: e.target.value }), placeholder: 'https://...', className: 'md:col-span-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2' }),
+                        React.createElement('select', { value: sourceDraft.type, onChange: e => setSourceDraft({ ...sourceDraft, type: e.target.value }), className: 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2' }, SOURCE_TYPES.map(opt => React.createElement('option', { key: opt, value: opt }, opt))),
+                        React.createElement('button', { onClick: addMessageSource, className: `rounded-lg text-white font-bold ${currentTheme.color} ${currentTheme.hoverBg}` }, '新增消息源')),
+                    React.createElement('textarea', { value: sourceDraft.notes, onChange: e => setSourceDraft({ ...sourceDraft, notes: e.target.value }), rows: 2, placeholder: '備註 / 更新週期 / 人工判讀重點', className: 'w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2' }),
+                    sourceStatus ? React.createElement('div', { className: 'rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 text-sm font-bold text-blue-800 dark:text-blue-200' }, sourceStatus) : null),
+                React.createElement('section', { className: 'grid grid-cols-1 gap-3' }, messageSources.map(source => React.createElement('article', { key: source.id, className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-4' },
+                    React.createElement('div', { className: 'min-w-0' },
+                        React.createElement('h3', { className: 'font-extrabold text-slate-900 dark:text-slate-100' }, source.name),
+                        React.createElement('p', { className: 'text-xs text-slate-500 dark:text-slate-400' }, source.type, '｜', source.lastCheckedAt ? `上次更新 ${new Date(source.lastCheckedAt).toLocaleString()}` : '尚未更新'),
+                        React.createElement('a', { href: source.url, target: '_blank', rel: 'noreferrer', className: 'text-sm text-blue-600 dark:text-blue-300 underline break-all' }, source.url),
+                        source.lastResult ? React.createElement('p', { className: 'text-xs text-slate-600 dark:text-slate-300 mt-1' }, source.lastResult) : null),
+                    React.createElement('div', { className: 'flex gap-2 shrink-0' },
+                        React.createElement('button', { onClick: () => fetchMessageSource(source), className: `px-3 py-2 rounded-lg text-white font-bold ${currentTheme.color} ${currentTheme.hoverBg}` }, '抓取最新'),
+                        React.createElement('button', { onClick: () => deleteMessageSource(source.id), className: 'px-3 py-2 rounded-lg border border-red-300 text-red-600 dark:text-red-300 font-bold' }, '刪除')))),
+                    messageSources.length === 0 ? React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-10 text-center text-slate-500 dark:text-slate-400 font-bold' }, '尚未新增消息源。') : null));
+
+            const renderPdfImportPage = () => React.createElement('div', { className: 'fade-in-up flex flex-col gap-4' },
+                React.createElement('section', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5 space-y-4' },
+                    React.createElement('div', null,
+                        React.createElement('p', { className: 'text-xs font-extrabold tracking-widest text-purple-600 dark:text-purple-300' }, 'PDF IMPORT'),
+                        React.createElement('h2', { className: 'text-2xl font-extrabold text-slate-900 dark:text-slate-100' }, 'PDF 導入'),
+                        React.createElement('p', { className: 'text-sm text-slate-600 dark:text-slate-300 mt-1' }, '可記錄在線 PDF URL，也可上傳 PDF。系統會嘗試讀取文字並建立備選項目；掃描件需先 OCR。')),
+                    React.createElement('div', { className: 'flex flex-col md:flex-row gap-3' },
+                        React.createElement('input', { value: pdfUrlInput, onChange: e => setPdfUrlInput(e.target.value), placeholder: 'https://official-site/.../notice.pdf', className: 'flex-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2' }),
+                        React.createElement('button', { onClick: importPdfFromUrl, className: `px-4 py-2 rounded-lg text-white font-bold ${currentTheme.color} ${currentTheme.hoverBg}` }, '讀取 PDF URL'),
+                        React.createElement('button', { onClick: recordPdfUrlOnly, className: 'px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 font-bold' }, '只記錄網址'),
+                        React.createElement('button', { onClick: () => pdfFileInputRef.current && pdfFileInputRef.current.click(), className: 'px-4 py-2 rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold' }, '上傳 PDF'),
+                        React.createElement('input', { ref: pdfFileInputRef, type: 'file', accept: 'application/pdf,.pdf', onChange: handlePdfFileImport, className: 'hidden' })),
+                    React.createElement('div', { className: 'rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-3 text-sm font-bold text-purple-800 dark:text-purple-200' }, pdfStatus),
+                    pdfTextPreview ? React.createElement('details', null, React.createElement('summary', { className: 'font-bold cursor-pointer' }, '查看本次 PDF 文字預覽'), React.createElement('pre', { className: 'mt-2 max-h-80 overflow-auto text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-3 whitespace-pre-wrap' }, pdfTextPreview)) : null),
+                React.createElement('section', { className: 'grid grid-cols-1 gap-3' }, pdfLibrary.map(item => React.createElement('article', { key: item.id, className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4' },
+                    React.createElement('div', { className: 'min-w-0' },
+                        React.createElement('h3', { className: 'font-extrabold text-slate-900 dark:text-slate-100' }, item.title),
+                        React.createElement('p', { className: 'text-xs text-slate-500 dark:text-slate-400' }, item.status, item.lastImportedAt ? `｜${new Date(item.lastImportedAt).toLocaleString()}` : ''),
+                        item.url ? React.createElement('a', { href: item.url, target: '_blank', rel: 'noreferrer', className: 'text-sm text-blue-600 dark:text-blue-300 underline break-all' }, item.url) : React.createElement('p', { className: 'text-sm text-slate-500' }, item.source || '本機上傳'),
+                        item.notes ? React.createElement('p', { className: 'text-xs text-slate-600 dark:text-slate-300 mt-1' }, item.notes) : null),
+                    React.createElement('button', { onClick: () => deletePdfRecord(item.id), className: 'px-3 py-2 rounded-lg border border-red-300 text-red-600 dark:text-red-300 font-bold shrink-0' }, '刪除'))),
+                    pdfLibrary.length === 0 ? React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-10 text-center text-slate-500 dark:text-slate-400 font-bold' }, '尚未記錄 PDF。') : null));
 
             // --- Dashboard UI 設計 ---
             const renderDashboard = () => {
@@ -3886,7 +4314,7 @@
                 return (React.createElement("div", { className: "min-h-screen flex items-center justify-center bg-slate-100 dark:bg-darkbg p-4" },
                     React.createElement("div", { className: "w-full max-w-md bg-white dark:bg-darkcard rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden" },
                         React.createElement("div", { className: `${currentTheme.color} p-6 text-white` },
-                            React.createElement("h1", { className: "text-2xl font-extrabold" }, "海事法規追蹤系統"),
+                            React.createElement("h1", { className: "text-2xl font-extrabold" }, "海事法規、外來信息辨識和執行追蹤系統"),
                             React.createElement("p", { className: "text-sm opacity-90 mt-1" }, "請先輸入進站密碼")),
                         React.createElement("div", { className: "p-6 space-y-4" },
                             React.createElement("input", { type: "password", value: sitePasswordInput, onChange: e => setSitePasswordInput(e.target.value), onKeyDown: e => { if (e.key === 'Enter') handleSiteUnlock(); }, placeholder: "進站密碼", className: `w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 text-lg outline-none ${currentTheme.ring}` }),
@@ -3904,8 +4332,8 @@
                 React.createElement("header", { className: `${currentTheme.header} text-white shadow-lg p-3 sticky top-0 z-40 transition-colors duration-300 no-print shrink-0` },
                     React.createElement("div", { className: "max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4" },
                         React.createElement("div", null,
-                            React.createElement("h1", { className: "text-xl font-bold tracking-wide" }, "\u6D77\u4E8B\u6CD5\u898F\u3001\u898F\u5B9A\u8FA8\u8B58\u548C\u57F7\u884C\u8FFD\u8E64\u7CFB\u7D71"),
-                            React.createElement("div", { className: "text-xs opacity-80 mt-1 font-medium" }, "Maritime Regulations, Rules Identification and Execution Tracking System")),
+                            React.createElement("h1", { className: "text-xl font-bold tracking-wide" }, "海事法規、外來信息辨識和執行追蹤系統"),
+                            React.createElement("div", { className: "text-xs opacity-80 mt-1 font-medium" }, "Maritime Regulations and External Information Identification and Execution Tracking System")),
                         React.createElement("div", { className: "flex items-center gap-2 flex-wrap justify-end" },
                             React.createElement("button", { onClick: () => setIsDark(!isDark), className: "flex justify-center items-center w-9 h-9 rounded-full hover:bg-white/20 transition-colors border border-white/30", title: "\u5207\u63DB\u6DF1\u6DFA\u8272\u6A21\u5F0F" }, isDark ? React.createElement(IconSun, { size: 18 }) : React.createElement(IconMoon, { size: 18 })),
                             React.createElement("button", { onClick: () => setUiLang(uiLang === 'zh' ? 'en' : 'zh'), className: "flex items-center gap-1.5 hover:bg-white/20 px-3 py-2 rounded-lg text-sm transition-colors border border-white/30 font-bold", title: "中文 / English", 'data-no-translate': 'true' }, uiLang === 'zh' ? 'English' : '中文'),
@@ -3954,7 +4382,7 @@
                                 React.createElement("span", { className: "hidden sm:inline flex items-center" },
                                     tab.label,
                                     !['dashboard','admin'].includes(tab.id) && (React.createElement("span", { className: "ml-1.5 opacity-90 text-[11px] bg-black/10 dark:bg-white/20 px-2 py-0.5 rounded-full inline-block min-w-[20px] text-center font-bold" }, tabCounts[tab.id]))))))),
-                            React.createElement("div", { className: `${['dashboard','admin'].includes(activeTab) ? 'hidden' : 'flex'} w-full xl:w-auto items-center gap-3 flex-wrap` },
+                            React.createElement("div", { className: `${DATA_MANAGEMENT_TABS.includes(activeTab) ? 'hidden' : 'flex'} w-full xl:w-auto items-center gap-3 flex-wrap` },
                                 React.createElement("div", { className: "relative flex items-center" },
                                     React.createElement("span", { className: "text-slate-500 dark:text-slate-400 mr-2 text-sm font-bold" },
                                         React.createElement(IconSortDesc, { size: 18 })),
@@ -3966,7 +4394,7 @@
                                     React.createElement("input", { type: "text", placeholder: "\u95DC\u9375\u8A5E\u641C\u7D22 (\u6A19\u984C, \u5167\u5BB9...)", value: searchQuery, onChange: (e) => setSearchQuery(e.target.value), className: `w-full pl-10 pr-4 py-2.5 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-lg text-sm focus:outline-none ${currentTheme.ring} focus:border-transparent transition-colors text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500` }),
                                     React.createElement("div", { className: "absolute left-3.5 top-3 text-slate-400 dark:text-slate-500" },
                                         React.createElement(IconSearch, { size: 18 }))))),
-                        React.createElement("div", { className: `${['dashboard','admin'].includes(activeTab) ? 'hidden' : 'flex'} flex-wrap items-center gap-2 pt-4 border-t border-slate-200 dark:border-slate-700` },
+                        React.createElement("div", { className: `${DATA_MANAGEMENT_TABS.includes(activeTab) ? 'hidden' : 'flex'} flex-wrap items-center gap-2 pt-4 border-t border-slate-200 dark:border-slate-700` },
                             React.createElement("span", { className: "text-sm font-bold text-slate-700 dark:text-slate-200 mr-2 flex items-center gap-1" },
                                 React.createElement(IconFilter, { size: 18, className: "text-slate-500 dark:text-slate-400" }),
                                 "\u512A\u5148\u7D1A\u5206\u4F48 (\u591A\u9078):"),
@@ -3978,16 +4406,16 @@
                                     p,
                                     React.createElement("span", { className: "bg-black/10 dark:bg-white/20 px-2 py-0.5 rounded-full text-xs leading-none inline-block min-w-[20px] text-center font-bold" }, count)));
                             })),
-                        React.createElement("div", { className: `${['dashboard','admin'].includes(activeTab) ? 'hidden' : 'flex'} flex-wrap items-center gap-3 pt-3` },
+                        React.createElement("div", { className: `${DATA_MANAGEMENT_TABS.includes(activeTab) ? 'hidden' : 'flex'} flex-wrap items-center gap-3 pt-3` },
                             React.createElement("span", { className: "text-sm font-bold text-slate-700 dark:text-slate-200 mr-2 pl-6" }, "\u5176\u4ED6\u7BE9\u9078:"),
                             renderMultiFilter('categories', '涉及分類', CATEGORIES),
                             renderMultiFilter('department', '涉及部門', DEPARTMENTS),
                             renderMultiFilter('region', '適用地區', REGIONS),
                             renderMultiFilter('shipType', '適用船型', SHIP_TYPES)))),
-                    activeTab === 'dashboard' ? renderDashboard() : activeTab === 'admin' ? (canAdminCloud() ? renderAdminPage() : (alert('您無權訪問'), setActiveTab('dashboard'), renderDashboard())) : activeTab === 'status_list' ? renderStatusList() : (React.createElement("div", { className: "bg-white dark:bg-darkcard shadow-md border border-slate-300 dark:border-slate-600 rounded-xl overflow-x-auto fade-in-up flex-1" },
+                    activeTab === 'dashboard' ? renderDashboard() : activeTab === 'candidates' ? renderCandidateItems() : activeTab === 'sources' ? renderMessageSources() : activeTab === 'pdfs' ? renderPdfImportPage() : activeTab === 'admin' ? (canAdminCloud() ? renderAdminPage() : (alert('您無權訪問'), setActiveTab('dashboard'), renderDashboard())) : activeTab === 'status_list' ? renderStatusList() : (React.createElement("div", { className: "bg-white dark:bg-darkcard shadow-md border border-slate-300 dark:border-slate-600 rounded-xl overflow-x-auto fade-in-up flex-1" },
                         React.createElement("div", { className: "hidden print:block text-center pt-8 pb-5 border-b border-slate-300 mb-6" },
-                            React.createElement("h2", { className: "text-3xl font-bold text-black" }, "\u6D77\u4E8B\u6CD5\u898F\u3001\u898F\u5B9A\u8FA8\u8B58\u548C\u57F7\u884C\u8FFD\u8E64\u7CFB\u7D71"),
-                            React.createElement("p", { className: "text-base mt-2 font-bold text-black" }, "Maritime Regulations, Rules Identification and Execution Tracking System"),
+                            React.createElement("h2", { className: "text-3xl font-bold text-black" }, "海事法規、外來信息辨識和執行追蹤系統"),
+                            React.createElement("p", { className: "text-base mt-2 font-bold text-black" }, "Maritime Regulations and External Information Identification and Execution Tracking System"),
                             React.createElement("p", { className: "text-sm mt-1 font-bold text-black" },
                                 "\u7522\u51FA\u65E5\u671F: ",
                                 new Date().toLocaleDateString())),
@@ -4216,6 +4644,12 @@
                             React.createElement("button", { onClick: () => setNewTaskModalOpen(false), className: "text-white opacity-70 hover:opacity-100 transition-opacity" },
                                 React.createElement(IconPlus, { size: 24, className: "rotate-45" }))),
                         React.createElement("div", { className: "p-8 overflow-y-auto custom-scrollbar flex-1 space-y-6 text-sm" },
+                            React.createElement("div", { className: "rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4 space-y-3" },
+                                React.createElement("div", { className: "font-extrabold text-blue-900 dark:text-blue-100" }, "網址自動抓取（可選）"),
+                                React.createElement("div", { className: "flex flex-col md:flex-row gap-3" },
+                                    React.createElement("input", { value: newTaskUrl, onChange: e => setNewTaskUrl(e.target.value), placeholder: "貼上官方公告、通函或外來信息網址", className: `flex-1 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-700 rounded-xl px-3 py-2 outline-none ${currentTheme.ring}` }),
+                                    React.createElement("button", { onClick: fetchUrlIntoNewTask, className: `px-4 py-2 rounded-xl text-white font-bold ${currentTheme.color} ${currentTheme.hoverBg}` }, "抓取並填入")),
+                                React.createElement("p", { className: "text-xs text-blue-800 dark:text-blue-200 leading-relaxed" }, newTaskUrlStatus || "若官方網站阻擋瀏覽器讀取，系統會提示；可改成人工貼上內容或到 PDF導入頁處理。")),
                             React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6" },
                                 React.createElement("div", { className: "md:col-span-2" },
                                     React.createElement("label", { className: "font-bold text-slate-700 dark:text-slate-300 block mb-2" },
@@ -4319,7 +4753,7 @@
                                             React.createElement(IconTrash, { size: 14 }))))))) : (React.createElement("div", { className: "text-sm text-slate-400 dark:text-slate-500 italic" }, "\u5C1A\u672A\u9078\u64C7\u4EFB\u4F55\u9644\u4EF6"))))),
                         React.createElement("div", { className: "p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-darkbg flex justify-end gap-4 rounded-b-3xl" },
                             React.createElement("button", { onClick: () => setNewTaskModalOpen(false), className: "px-8 py-3 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" }, "\u53D6\u6D88"),
-                            React.createElement("button", { onClick: submitNewTask, className: `px-8 py-3 rounded-xl font-bold ${currentTheme.color} text-white ${currentTheme.hoverBg} transition-colors shadow-md` }, "\u5EFA\u7ACB\u65B0\u9805\u76EE"))))))));
+                            React.createElement("button", { onClick: submitNewTask, className: `px-8 py-3 rounded-xl font-bold ${currentTheme.color} text-white ${currentTheme.hoverBg} transition-colors shadow-md` }, "加入備選項目"))))))));
         }
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(React.createElement(App, null));
