@@ -4262,38 +4262,38 @@
                                 React.createElement('button', { onClick: persistSiteAccessPassword, className: `px-5 py-2 rounded-lg text-white font-bold ${currentTheme.color}` }, '更新密碼')
                             )
                         ),
-                        React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-purple-200 dark:border-purple-800 shadow-md p-4' },
-                            React.createElement('div', { className: 'flex flex-col md:flex-row md:items-start justify-between gap-3 mb-3' },
+                        React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-purple-200 dark:border-purple-800 shadow-md p-3' },
+                            React.createElement('div', { className: 'flex flex-col md:flex-row md:items-start justify-between gap-2 mb-2' },
                                 React.createElement('div', null,
-                                    React.createElement('h3', { className: 'text-lg font-extrabold mb-1 text-purple-800 dark:text-purple-200' }, '人員名單與權限'),
-                                    React.createElement('p', { className: 'text-sm text-slate-600 dark:text-slate-300 leading-relaxed' }, '比照操作員預設名單：名單維護只限 Owner 或管理員；可在每個人旁邊直接切換「操作員/管理員」。')
+                                    React.createElement('h3', { className: 'text-base font-extrabold mb-0.5 text-purple-800 dark:text-purple-200' }, '人員名單與權限'),
+                                    React.createElement('p', { className: 'text-xs text-slate-600 dark:text-slate-300 leading-snug' }, '名單維護只限 Owner 或管理員；姓名旁可直接切換「操作員/管理員」。')
                                 ),
-                                React.createElement('span', { className: 'px-3 py-1.5 rounded-full bg-purple-100 text-purple-800 font-bold text-sm self-start' }, countOperatorRosterNames(operatorRoster), ' 人')
+                                React.createElement('span', { className: 'px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 font-extrabold text-xs self-start' }, countOperatorRosterNames(operatorRoster), ' 人')
                             ),
-                            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-[220px_1fr_190px_auto] gap-2 mb-4 items-end' },
-                                React.createElement('label', { className: 'text-xs font-extrabold text-slate-600 dark:text-slate-300' }, '部門',
-                                    React.createElement('select', { value: operatorRosterDraft.department, onChange: e => setOperatorRosterDraft({ ...operatorRosterDraft, department: e.target.value }), className: 'mt-1 w-full border border-purple-200 dark:border-purple-700 rounded-lg px-3 py-2.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-bold' }, DEPARTMENTS.map(d => React.createElement('option', { key: d, value: d }, d)))),
-                                React.createElement('label', { className: 'text-xs font-extrabold text-slate-600 dark:text-slate-300' }, '姓名',
-                                    React.createElement('input', { value: operatorRosterDraft.name, onChange: e => setOperatorRosterDraft({ ...operatorRosterDraft, name: e.target.value }), onKeyDown: e => { if (e.key === 'Enter') addOperatorRosterName(); }, placeholder: '輸入姓名', className: 'mt-1 w-full border border-purple-200 dark:border-purple-700 rounded-lg px-3 py-2.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-bold' })),
-                                React.createElement('label', { className: 'text-xs font-extrabold text-slate-600 dark:text-slate-300' }, '權限',
-                                    React.createElement('select', { value: operatorRosterDraft.role || 'operator', onChange: e => setOperatorRosterDraft({ ...operatorRosterDraft, role: e.target.value }), className: 'mt-1 w-full border border-purple-200 dark:border-purple-700 rounded-lg px-3 py-2.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-bold' }, ['operator','admin'].map(role => React.createElement('option', { key: role, value: role }, PERSONNEL_ROLE_LABELS[role])))),
-                                React.createElement('button', { onClick: addOperatorRosterName, className: `px-5 py-2.5 rounded-lg text-white font-extrabold ${currentTheme.color} ${currentTheme.hoverBg}` }, '新增人員')
+                            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-[150px_1fr_130px_auto] gap-1.5 mb-2 items-end' },
+                                React.createElement('label', { className: 'text-[11px] font-extrabold text-slate-600 dark:text-slate-300' }, '部門',
+                                    React.createElement('select', { value: operatorRosterDraft.department, onChange: e => setOperatorRosterDraft({ ...operatorRosterDraft, department: e.target.value }), className: 'mt-0.5 w-full border border-purple-200 dark:border-purple-700 rounded-md px-2 py-1.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold' }, DEPARTMENTS.map(d => React.createElement('option', { key: d, value: d }, d)))),
+                                React.createElement('label', { className: 'text-[11px] font-extrabold text-slate-600 dark:text-slate-300' }, '姓名',
+                                    React.createElement('input', { value: operatorRosterDraft.name, onChange: e => setOperatorRosterDraft({ ...operatorRosterDraft, name: e.target.value }), onKeyDown: e => { if (e.key === 'Enter') addOperatorRosterName(); }, placeholder: '輸入姓名', className: 'mt-0.5 w-full border border-purple-200 dark:border-purple-700 rounded-md px-2 py-1.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold' })),
+                                React.createElement('label', { className: 'text-[11px] font-extrabold text-slate-600 dark:text-slate-300' }, '權限',
+                                    React.createElement('select', { value: operatorRosterDraft.role || 'operator', onChange: e => setOperatorRosterDraft({ ...operatorRosterDraft, role: e.target.value }), className: 'mt-0.5 w-full border border-purple-200 dark:border-purple-700 rounded-md px-2 py-1.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs font-bold' }, ['operator','admin'].map(role => React.createElement('option', { key: role, value: role }, PERSONNEL_ROLE_LABELS[role])))),
+                                React.createElement('button', { onClick: addOperatorRosterName, className: `px-3 py-1.5 rounded-md text-white text-xs font-extrabold whitespace-nowrap ${currentTheme.color} ${currentTheme.hoverBg}` }, '新增人員')
                             ),
-                            React.createElement('div', { className: 'space-y-3 max-h-[720px] overflow-y-auto pr-1' }, DEPARTMENTS.map(dept => {
+                            React.createElement('div', { className: 'max-h-[680px] overflow-y-auto pr-1 divide-y divide-slate-200 dark:divide-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/35' }, DEPARTMENTS.map(dept => {
                                 const names = operatorRoster[dept] || [];
-                                return React.createElement('section', { key: dept, className: 'rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/45 p-3' },
-                                    React.createElement('div', { className: 'flex items-center justify-between mb-2' },
-                                        React.createElement('h4', { className: 'text-base font-extrabold text-purple-800 dark:text-purple-200' }, dept),
-                                        React.createElement('span', { className: 'text-sm font-extrabold text-slate-500 dark:text-slate-300' }, names.length)
+                                return React.createElement('section', { key: dept, className: 'grid grid-cols-1 md:grid-cols-[92px_1fr] gap-2 items-start px-2 py-1.5' },
+                                    React.createElement('div', { className: 'flex md:flex-col items-center md:items-start gap-1 shrink-0' },
+                                        React.createElement('span', { className: 'text-xs font-extrabold text-purple-800 dark:text-purple-200 leading-tight whitespace-nowrap' }, dept),
+                                        React.createElement('span', { className: 'inline-flex items-center justify-center min-w-6 px-1.5 py-0.5 rounded-full bg-white dark:bg-slate-900 border border-purple-100 dark:border-purple-800 text-[11px] font-extrabold text-slate-600 dark:text-slate-300' }, names.length)
                                     ),
-                                    names.length ? React.createElement('div', { className: 'flex flex-wrap gap-2' }, names.map(name => {
+                                    names.length ? React.createElement('div', { className: 'flex flex-wrap gap-1' }, names.map(name => {
                                         const role = getPersonnelRole(name);
-                                        return React.createElement('div', { key: name, className: `inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 ${role === 'admin' ? 'bg-orange-50 dark:bg-orange-900/25 text-orange-900 dark:text-orange-100' : 'bg-sky-50 dark:bg-sky-900/25 text-sky-900 dark:text-sky-100'} border border-slate-200 dark:border-slate-700` },
-                                            React.createElement('span', { className: 'font-extrabold text-sm whitespace-nowrap' }, name),
-                                            React.createElement('select', { value: role, onChange: e => updatePersonnelRole(name, e.target.value), className: 'border border-purple-200 dark:border-purple-700 rounded-md px-2 py-1 text-xs font-extrabold bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100' }, ['operator','admin'].map(r => React.createElement('option', { key: r, value: r }, PERSONNEL_ROLE_LABELS[r]))),
-                                            React.createElement('button', { onClick: () => removeOperatorRosterName(dept, name), className: 'w-6 h-6 rounded-full bg-red-100 text-red-700 hover:bg-red-200 font-extrabold leading-none', title: '移除' }, '×')
+                                        return React.createElement('div', { key: name, className: `inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 leading-none ${role === 'admin' ? 'bg-orange-50 dark:bg-orange-900/25 text-orange-900 dark:text-orange-100' : 'bg-sky-50 dark:bg-sky-900/25 text-sky-900 dark:text-sky-100'} border border-slate-200 dark:border-slate-700` },
+                                            React.createElement('span', { className: 'font-extrabold text-xs whitespace-nowrap leading-6' }, name),
+                                            React.createElement('select', { value: role, onChange: e => updatePersonnelRole(name, e.target.value), className: 'h-6 border border-purple-200 dark:border-purple-700 rounded px-1 text-[11px] font-extrabold bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100' }, ['operator','admin'].map(r => React.createElement('option', { key: r, value: r }, PERSONNEL_ROLE_LABELS[r]))),
+                                            React.createElement('button', { onClick: () => removeOperatorRosterName(dept, name), className: 'w-5 h-5 rounded-full bg-red-100 text-red-700 hover:bg-red-200 text-xs font-extrabold leading-none', title: '移除' }, '×')
                                         );
-                                    })) : React.createElement('div', { className: 'text-xs text-slate-400 italic' }, '尚未設定')
+                                    })) : React.createElement('div', { className: 'text-xs text-slate-400 italic leading-6' }, '尚未設定')
                                 );
                             }))
                         )
