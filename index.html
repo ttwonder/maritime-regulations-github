@@ -2532,6 +2532,72 @@
                 const bodyText = getTextPreview(doc.body ? doc.body.innerText : html, 1800);
                 return { title, description: description || bodyText.slice(0, 420), bodyText };
             };
+            const safeResolveUrl = (href, baseUrl = '') => {
+                try { return new URL(String(href || '').trim(), baseUrl || window.location.href).href; }
+                catch (_) { return String(href || '').trim(); }
+            };
+            const isLikelyPdfUrl = (url = '') => /\.pdf(?:[?#].*)?$/i.test(String(url || '').trim());
+            const extractPdfLinksFromHtml = (html, baseUrl = '') => {
+                const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+                const links = [...doc.querySelectorAll('a[href]')].map(a => ({
+                    title: stripHtmlForText(a.textContent || a.getAttribute('title') || a.getAttribute('aria-label') || ''),
+                    url: safeResolveUrl(a.getAttribute('href'), baseUrl)
+                })).filter(link => isLikelyPdfUrl(link.url));
+                const rawMatches = [...String(html || '').matchAll(/(?:href=["']?|url\()([^"'\s)<>]+\.pdf(?:[?#][^"'\s)<>]*)?)/gi)].map(m => ({ title: '', url: safeResolveUrl(m[1], baseUrl) }));
+                const merged = [...links, ...rawMatches];
+                const seen = new Set();
+                return merged.filter(link => {
+                    const key = normalizeImportKey(link.url);
+                    if (!key || seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                }).slice(0, 30);
+            };
+            const extractFeedItems = (xmlText, baseUrl = '') => {
+                const doc = new DOMParser().parseFromString(String(xmlText || ''), 'application/xml');
+                if (doc.querySelector('parsererror')) return [];
+                const readText = (node, selectors) => {
+                    for (const sel of selectors) {
+                        const found = node.querySelector(sel);
+                        if (found) return stripHtmlForText(found.textContent || found.getAttribute('href') || '');
+                    }
+                    return '';
+                };
+                const readLink = (node) => {
+                    const atom = node.querySelector('link[href]');
+                    const rss = node.querySelector('link');
+                    return safeResolveUrl(atom ? atom.getAttribute('href') : (rss ? rss.textContent : ''), baseUrl);
+                };
+                const nodes = [...doc.querySelectorAll('item, entry')].slice(0, 20);
+                return nodes.map(node => ({
+                    title: readText(node, ['title']) || '未命名消息',
+                    link: readLink(node),
+                    date: readText(node, ['pubDate', 'updated', 'published', 'dc\\:date']),
+                    description: readText(node, ['description', 'summary', 'content'])
+                })).filter(item => item.title || item.description || item.link);
+            };
+            const extractArticleLinksFromHtml = (html, baseUrl = '') => {
+                const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+                const keyword = /(notice|news|press|circular|resolution|guideline|amendment|regulation|marine|maritime|safety|environment|公告|通知|通函|決議|修正案|指南|指引|規則|法規|海事|安全|環保|排放|船舶)/i;
+                const seen = new Set();
+                return [...doc.querySelectorAll('a[href]')].map(a => {
+                    const url = safeResolveUrl(a.getAttribute('href'), baseUrl);
+                    const title = stripHtmlForText(a.textContent || a.getAttribute('title') || a.getAttribute('aria-label') || '');
+                    return { title, url };
+                }).filter(link => {
+                    const key = normalizeImportKey(link.url);
+                    if (!key || seen.has(key) || isLikelyPdfUrl(link.url)) return false;
+                    seen.add(key);
+                    const combined = `${link.title} ${link.url}`;
+                    return link.title.length >= 6 && keyword.test(combined);
+                }).slice(0, 12);
+            };
+            const makeCandidateTextFromLink = (link, sourceName = '消息源') => [
+                link.title || '待確認外來信息連結',
+                `來源：${sourceName}`,
+                link.url ? `URL：${link.url}` : '',
+                '此項目由消息源頁面連結自動發現，尚未讀取詳細內文；請管理員打開來源核對後再確認。'
+            ].filter(Boolean).join('\n');
             const normalizeImportKey = (value) => stripHtmlForText(value || '').toLowerCase().replace(/https?:\/\//g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().slice(0, 180);
             const guessSourceFromText = (text, fallback = '其他') => {
                 const t = String(text || '').toLowerCase();
@@ -3522,11 +3588,65 @@
                 try {
                     const response = await fetch(source.url);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const contentType = response.headers.get('content-type') || '';
                     const html = await response.text();
                     const info = extractPageInfo(html, source.url);
-                    const importText = `${info.title}\n${info.description}\n\n${info.bodyText}`;
-                    const result = addCandidatesFromText(importText, { importType: 'source', importSource: source.name, sourceUrl: source.url, notes: '由消息源手動更新抓取。', maxItems: 10 });
-                    const summary = `已抓取：新增 ${result.added} 筆備選，略過 ${result.skipped} 筆疑似重複。`;
+                    const looksLikeFeed = /rss|atom|xml/i.test(contentType) || /^\s*<\?xml/i.test(html) || /<rss\b|<feed\b/i.test(html.slice(0, 1000));
+                    const feedItems = looksLikeFeed ? extractFeedItems(html, source.url) : [];
+                    const pdfLinks = extractPdfLinksFromHtml(html, source.url);
+                    const articleLinks = feedItems.length ? [] : extractArticleLinksFromHtml(html, source.url);
+                    let totalAdded = 0;
+                    let totalSkipped = 0;
+                    const addResult = (result) => { totalAdded += result.added || 0; totalSkipped += result.skipped || 0; };
+
+                    if (feedItems.length) {
+                        feedItems.slice(0, 15).forEach(item => addResult(addCandidatesFromText(`${item.title}\n${item.date || ''}\n${item.description || ''}\n${item.link || ''}`, {
+                            importType: 'source',
+                            importSource: source.name,
+                            sourceUrl: item.link || source.url,
+                            notes: '由 RSS/Atom 消息源條目建立。',
+                            maxItems: 1
+                        })));
+                    } else {
+                        const importText = `${info.title}\n${info.description}\n\n${info.bodyText}`;
+                        addResult(addCandidatesFromText(importText, { importType: 'source', importSource: source.name, sourceUrl: source.url, notes: '由消息源頁面正文抓取。', maxItems: 8 }));
+                        articleLinks.slice(0, 8).forEach(link => addResult(addCandidatesFromText(makeCandidateTextFromLink(link, source.name), {
+                            importType: 'source',
+                            importSource: source.name,
+                            sourceUrl: link.url,
+                            notes: '由消息源頁面公告/通函連結自動發現。',
+                            maxItems: 1
+                        })));
+                    }
+
+                    const existingPdfKeys = new Set((pdfLibrary || []).map(item => normalizeImportKey(item.url || item.title || '')));
+                    const uniquePdfLinks = pdfLinks.filter(link => !existingPdfKeys.has(normalizeImportKey(link.url)));
+                    let addedPdfCount = 0;
+                    if (uniquePdfLinks.length) {
+                        const ok = updatePdfLibrary(prev => {
+                            const seen = new Set((prev || []).map(item => normalizeImportKey(item.url || item.title || '')));
+                            const additions = uniquePdfLinks.filter(link => {
+                                const key = normalizeImportKey(link.url);
+                                if (!key || seen.has(key)) return false;
+                                seen.add(key);
+                                return true;
+                            }).map(link => ({
+                                id: `PDF-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                                title: link.title || (link.url.split('/').pop() || '消息源 PDF'),
+                                url: link.url,
+                                source: source.name,
+                                notes: '由消息源頁面自動發現 PDF URL，尚未自動讀取。',
+                                status: 'url_only',
+                                lastImportedAt: '',
+                                createdAt: Date.now()
+                            }));
+                            addedPdfCount = additions.length;
+                            return additions.length ? [...additions, ...prev] : prev;
+                        }, `消息源發現 PDF ${source.name}`);
+                        if (!ok) addedPdfCount = 0;
+                    }
+                    const skippedPdfCount = Math.max(0, pdfLinks.length - addedPdfCount);
+                    const summary = `已抓取：新增 ${totalAdded} 筆備選，略過 ${totalSkipped} 筆疑似重複；發現 PDF ${pdfLinks.length} 個，新增 PDF 紀錄 ${addedPdfCount} 個，略過 ${skippedPdfCount} 個；${feedItems.length ? `RSS/Atom 條目 ${feedItems.length} 筆` : `公告/通函連結 ${articleLinks.length} 個`}。`;
                     updateMessageSources(prev => prev.map(item => item.id === source.id ? { ...item, lastCheckedAt: new Date().toISOString(), lastResult: summary } : item), `更新消息源 ${source.name}`);
                     setSourceStatus(`「${source.name}」${summary}`);
                 } catch (err) {
