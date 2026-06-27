@@ -2495,7 +2495,7 @@
             const [searchQuery, setSearchQuery] = useState('');
             const [sortOrder, setSortOrder] = useState('id_desc'); // 'id_desc' | 'id_asc'
             const [statusListSorts, setStatusListSorts] = useState({ in_progress: 'id_desc', completed: 'id_desc', temp_na: 'id_desc' });
-            const [filters, setFilters] = useState({ categories: [], priority: [], department: [], region: [], shipType: [] });
+            const [filters, setFilters] = useState({ categories: [], priority: [], department: [], region: [], shipType: [], requiresMoc: false });
             // Dashboard 專屬過濾器
             const [dashFilters, setDashFilters] = useState({ year: '', category: '', status: 'all_impacted' });
             // Supabase 雲端存檔、權限與 LOG 狀態（GitHub Pages 可用）
@@ -3581,7 +3581,8 @@
                     priority: filterType === 'priority' ? [value] : [],
                     department: filterType === 'department' ? [value] : [],
                     region: [],
-                    shipType: []
+                    shipType: [],
+                    requiresMoc: false
                 });
                 setActiveTab('all');
             };
@@ -4046,6 +4047,8 @@
                     if (filters.region.length > 0 && !filters.region.some(r => { var _a; return (_a = task.applicableRegions) === null || _a === void 0 ? void 0 : _a.includes(r); }))
                         return false;
                     if (filters.shipType.length > 0 && !filters.shipType.some(s => { var _a; return (_a = task.applicableShipTypes) === null || _a === void 0 ? void 0 : _a.includes(s); }))
+                        return false;
+                    if (filters.requiresMoc && !task.requiresMoc)
                         return false;
                     return true;
                 });
@@ -4839,6 +4842,10 @@
                                 React.createElement("input", { type: "text", placeholder: "\u95DC\u9375\u8A5E\u641C\u7D22 (\u6A19\u984C, \u5167\u5BB9...)", value: searchQuery, onChange: (e) => setSearchQuery(e.target.value), className: `w-full pl-9 pr-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-lg text-xs focus:outline-none ${currentTheme.ring} focus:border-transparent transition-colors text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500` }),
                                 React.createElement("div", { className: "absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" },
                                     React.createElement(IconSearch, { size: 18 }))),
+                            React.createElement("button", { onClick: () => setFilters(prev => ({ ...prev, requiresMoc: !prev.requiresMoc })), className: `flex items-center gap-1.5 px-3 py-1.5 rounded border text-sm font-bold transition-colors ${filters.requiresMoc ? `${currentTheme.light} ${currentTheme.border} ${currentTheme.text} ring-2 ring-offset-1 dark:ring-offset-darkcard ${currentTheme.ring}` : 'bg-white dark:bg-darkcard border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}` },
+                                React.createElement(IconAlertCircle, { size: 16 }),
+                                "需要 MOC",
+                                React.createElement("span", { className: "bg-black/10 dark:bg-white/20 px-2 py-0.5 rounded-full text-xs leading-none inline-block min-w-[20px] text-center font-bold" }, tasks.filter(t => t.requiresMoc).length)),
                             renderMultiFilter('categories', '涉及分類', CATEGORIES),
                             renderMultiFilter('department', '涉及部門', DEPARTMENTS),
                             renderMultiFilter('region', '適用地區', REGIONS),
