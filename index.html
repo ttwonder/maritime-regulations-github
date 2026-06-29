@@ -2523,6 +2523,12 @@
                 try { return normalizePersonnelRoles(JSON.parse(localStorage.getItem('maritime_personnel_roles') || '{}'), normalizeOperatorRoster(JSON.parse(localStorage.getItem('maritime_operator_roster') || JSON.stringify(DEFAULT_OPERATOR_ROSTER)))); }
                 catch (_) { return normalizePersonnelRoles({}, DEFAULT_OPERATOR_ROSTER); }
             });
+            const [adminPasswords, setAdminPasswords] = useState(() => {
+                try { const parsed = JSON.parse(localStorage.getItem('maritime_admin_passwords') || '{}'); return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}; }
+                catch (_) { return {}; }
+            });
+            const [adminPasswordDrafts, setAdminPasswordDrafts] = useState({});
+            const [operatorAdminPassword, setOperatorAdminPassword] = useState('');
             const [siteAccessPassword, setSiteAccessPassword] = useState(() => localStorage.getItem('maritime_site_access_password') || DEFAULT_SITE_ACCESS_PASSWORD);
             const [sitePasswordInput, setSitePasswordInput] = useState('');
             const [sitePasswordError, setSitePasswordError] = useState('');
@@ -2598,6 +2604,7 @@
                 }
             }, [operatorRoster]);
             useEffect(() => { localStorage.setItem('maritime_personnel_roles', JSON.stringify(personnelRoles)); }, [personnelRoles]);
+            useEffect(() => { localStorage.setItem('maritime_admin_passwords', JSON.stringify(adminPasswords)); }, [adminPasswords]);
             useEffect(() => { localStorage.setItem('maritime_site_access_password', siteAccessPassword || DEFAULT_SITE_ACCESS_PASSWORD); }, [siteAccessPassword]);
 
             const normalizeTaskList = (list) => Array.isArray(list) ? list.map(t => ({
@@ -2887,7 +2894,11 @@
             };
             const isUsableSupabaseConfig = (cfg) => !isPlaceholderSupabaseConfig(cfg);
             const getPersonnelRole = (name) => personnelRoles[String(name || '').trim()] || getDefaultPersonnelRole(name);
-            const isLocalAdmin = () => currentOperatorRef.current && getPersonnelRole(currentOperatorRef.current.name) === 'admin';
+            const getPersonnelPasswordKey = (dept, name) => `${String(dept || '').trim()}/${String(name || '').trim()}`;
+            const getAdminPassword = (dept, name) => String(adminPasswords[getPersonnelPasswordKey(dept, name)] || '').trim();
+            const hasAdminPassword = (dept, name) => !!getAdminPassword(dept, name);
+            const getEffectiveOperatorRole = (operator = currentOperatorRef.current) => operator && operator.adminAuthenticated && getPersonnelRole(operator.name) === 'admin' ? 'admin' : 'operator';
+            const isLocalAdmin = () => getEffectiveOperatorRole(currentOperatorRef.current) === 'admin';
             const isPrivilegedRole = (role = cloudRef.current.role) => ['owner', 'admin'].includes(role) || isLocalAdmin();
             const canEditCloud = () => isPrivilegedRole() || !!currentOperatorRef.current;
             const canAdminCloud = () => isPrivilegedRole();
@@ -2910,14 +2921,14 @@
                 const suffix = `@${USERNAME_AUTH_DOMAIN}`;
                 return raw.endsWith(suffix) ? raw.slice(0, -suffix.length) : original;
             };
-            const getOperatorActorEmail = (operator) => operator ? `${getPersonnelRole(operator.name)}:${operator.department}/${operator.name}` : '';
+            const getOperatorActorEmail = (operator) => operator ? `${getEffectiveOperatorRole(operator)}:${operator.department}/${operator.name}` : '';
             const getActorContext = () => {
                 const { session, role } = cloudRef.current;
                 if (session && isPrivilegedRole(role)) {
                     return { actor_id: session.user.id, actor_email: session.user.email, role };
                 }
                 if (currentOperatorRef.current) {
-                    const localRole = getPersonnelRole(currentOperatorRef.current.name);
+                    const localRole = getEffectiveOperatorRole(currentOperatorRef.current);
                     return { actor_id: null, actor_email: getOperatorActorEmail(currentOperatorRef.current), role: localRole };
                 }
                 return null;
@@ -3058,6 +3069,35 @@
                 } finally { setIsCloudBusy(false); }
             };
 
+
+            const persistAdminPasswords = async (nextPasswords, summary = '更新管理員密碼') => {
+                const normalized = Object.fromEntries(Object.entries(nextPasswords || {}).map(([k, v]) => [k, String(v || '').trim()]).filter(([, v]) => v));
+                setAdminPasswords(normalized);
+                localStorage.setItem('maritime_admin_passwords', JSON.stringify(normalized));
+                if (!cloudClient || !cloudSession || !['owner','admin'].includes(cloudRole)) return true;
+                setIsCloudBusy(true);
+                try {
+                    const { error: stateError } = await cloudClient.from('app_state').upsert({ key: 'personnel_admin_passwords', value: { passwords: normalized, updatedAt: new Date().toISOString(), version: 1 }, updated_by: cloudSession.user.id, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+                    if (stateError) throw stateError;
+                    await cloudClient.from('audit_logs').insert({ actor_id: cloudSession.user.id, actor_email: cloudSession.user.email, action: 'save_admin_passwords', entity_type: 'personnel_admin_passwords', entity_id: 'personnel_admin_passwords', summary, new_data: { count: Object.keys(normalized).length } });
+                    setCloudStatus('管理員密碼已同步至雲端。');
+                    await loadAuditLogs();
+                    return true;
+                } catch (err) {
+                    alert('管理員密碼同步失敗：' + (err.message || JSON.stringify(err)));
+                    return false;
+                } finally { setIsCloudBusy(false); }
+            };
+
+            const savePersonnelAdminPassword = async (dept, name) => {
+                if (!canAdminCloud()) { alert('需要管理員權限。'); return; }
+                const key = getPersonnelPasswordKey(dept, name);
+                const value = String(adminPasswordDrafts[key] ?? adminPasswords[key] ?? '').trim();
+                if (!value) { alert('管理員密碼不可空白。若不需要密碼，請把該人權限改為操作員。'); return; }
+                const ok = await persistAdminPasswords({ ...adminPasswords, [key]: value }, `更新管理員密碼 ${dept}/${name}`);
+                if (ok) alert(`已更新 ${name} 的管理員密碼。`);
+            };
+
             const addOperatorRosterName = async () => {
                 if (!canAdminCloud()) { alert('需要 owner/admin 權限維護操作員名單。'); return; }
                 const dept = operatorRosterDraft.department;
@@ -3084,12 +3124,18 @@
                 const next = normalizeOperatorRoster(operatorRoster);
                 next[dept] = next[dept].filter(n => n !== name);
                 persistOperatorRoster(next, `移除操作員 ${dept}/${name}`);
+                const key = getPersonnelPasswordKey(dept, name);
+                if (adminPasswords[key]) {
+                    const nextPasswords = { ...adminPasswords };
+                    delete nextPasswords[key];
+                    persistAdminPasswords(nextPasswords, `移除管理員密碼 ${dept}/${name}`);
+                }
             };
 
             const loadPublicCloudState = async (client) => {
                 if (!client) return;
                 try {
-                    const { data: rows, error } = await client.from('app_state').select('key,value').in('key', ['tasks', 'candidate_items', 'message_sources', 'pdf_library', 'operator_roster', 'personnel_roles', 'site_access_password']);
+                    const { data: rows, error } = await client.from('app_state').select('key,value').in('key', ['tasks', 'candidate_items', 'message_sources', 'pdf_library', 'operator_roster', 'personnel_roles', 'personnel_admin_passwords', 'site_access_password']);
                     if (error) throw error;
                     const taskRow = (rows || []).find(r => r.key === 'tasks');
                     const candidateRow = (rows || []).find(r => r.key === 'candidate_items');
@@ -3097,6 +3143,7 @@
                     const pdfRow = (rows || []).find(r => r.key === 'pdf_library');
                     const rosterRow = (rows || []).find(r => r.key === 'operator_roster');
                     const rolesRow = (rows || []).find(r => r.key === 'personnel_roles');
+                    const adminPasswordRow = (rows || []).find(r => r.key === 'personnel_admin_passwords');
                     const passwordRow = (rows || []).find(r => r.key === 'site_access_password');
                     if (taskRow && taskRow.value && Array.isArray(taskRow.value.tasks)) {
                         const cloudTasks = normalizeTaskList(taskRow.value.tasks);
@@ -3108,6 +3155,7 @@
                     if (pdfRow && pdfRow.value && Array.isArray(pdfRow.value.pdfs)) { const next = normalizePdfLibrary(pdfRow.value.pdfs); setPdfLibrary(next); localStorage.setItem('maritime_pdf_library', JSON.stringify(next)); }
                     if (rosterRow && rosterRow.value && rosterRow.value.roster) setOperatorRoster(normalizeOperatorRoster(rosterRow.value.roster));
                     if (rolesRow && rolesRow.value && rolesRow.value.roles) setPersonnelRoles(normalizePersonnelRoles(rolesRow.value.roles, rosterRow && rosterRow.value && rosterRow.value.roster ? rosterRow.value.roster : operatorRoster));
+                    if (adminPasswordRow && adminPasswordRow.value && adminPasswordRow.value.passwords) setAdminPasswords(adminPasswordRow.value.passwords);
                     if (passwordRow && passwordRow.value && passwordRow.value.password) { setSiteAccessPassword(String(passwordRow.value.password)); setSitePasswordDraft(String(passwordRow.value.password)); }
                     setCloudStatus('Supabase 已設定：目前為操作員瀏覽模式；進行項目操作時需選擇部門與姓名。Owner/管理員請至管理中心登入。');
                 } catch (err) {
@@ -3159,6 +3207,8 @@
                     await loadOperatorRoster(client);
                     const { data: rolesRow } = await client.from('app_state').select('value').eq('key', 'personnel_roles').maybeSingle();
                     if (rolesRow && rolesRow.value && rolesRow.value.roles) setPersonnelRoles(normalizePersonnelRoles(rolesRow.value.roles, operatorRoster));
+                    const { data: adminPasswordRow } = await client.from('app_state').select('value').eq('key', 'personnel_admin_passwords').maybeSingle();
+                    if (adminPasswordRow && adminPasswordRow.value && adminPasswordRow.value.passwords) setAdminPasswords(adminPasswordRow.value.passwords);
                     const { data: passwordRow } = await client.from('app_state').select('value').eq('key', 'site_access_password').maybeSingle();
                     if (passwordRow && passwordRow.value && passwordRow.value.password) { setSiteAccessPassword(String(passwordRow.value.password)); setSitePasswordDraft(String(passwordRow.value.password)); }
                     if (member.role === 'owner') await loadMembers(client);
@@ -3255,6 +3305,7 @@
                 const firstDept = DEPARTMENTS.find(d => (normalizedRoster[d] || []).length > 0) || DEPARTMENTS[0];
                 setOperatorSelectDept(firstDept);
                 setOperatorSelectName((normalizedRoster[firstDept] || [])[0] || '');
+                setOperatorAdminPassword('');
                 setPendingActionLabel(actionLabel || '修改項目');
                 pendingMutationRef.current = retryCallback;
                 setOperatorModalOpen(true);
@@ -3266,9 +3317,23 @@
                 const name = operatorSelectName;
                 if (!dept || !name) { alert('請選擇部門與姓名。'); return; }
                 if (!(operatorRoster[dept] || []).includes(name)) { alert('此姓名不在該部門操作員名單內。'); return; }
-                const op = { department: dept, name, role: getPersonnelRole(name) };
+                const rosterRole = getPersonnelRole(name);
+                let adminAuthenticated = false;
+                if (rosterRole === 'admin') {
+                    const configuredPassword = getAdminPassword(dept, name);
+                    if (!configuredPassword) {
+                        alert('此人員尚未設定管理員密碼，本次只會以操作員身份進入。');
+                    } else if (String(operatorAdminPassword || '') !== configuredPassword) {
+                        alert('管理員密碼錯誤。未完成管理員登入。');
+                        return;
+                    } else {
+                        adminAuthenticated = true;
+                    }
+                }
+                const op = { department: dept, name, role: adminAuthenticated ? 'admin' : 'operator', rosterRole, adminAuthenticated };
                 currentOperatorRef.current = op;
                 setCurrentOperator(op);
+                setOperatorAdminPassword('');
                 setOperatorModalOpen(false);
                 const pending = pendingMutationRef.current;
                 pendingMutationRef.current = null;
@@ -3311,6 +3376,14 @@
                 const next = normalizePersonnelRoles({ ...personnelRoles, [name]: role }, operatorRoster);
                 setPersonnelRoles(next);
                 localStorage.setItem('maritime_personnel_roles', JSON.stringify(next));
+                if (role !== 'admin') {
+                    const passwordKeys = Object.keys(adminPasswords).filter(key => key.endsWith(`/${String(name || '').trim()}`));
+                    if (passwordKeys.length) {
+                        const nextPasswords = { ...adminPasswords };
+                        passwordKeys.forEach(key => delete nextPasswords[key]);
+                        persistAdminPasswords(nextPasswords, `移除非管理員密碼 ${name}`);
+                    }
+                }
                 if (cloudClient && cloudSession && ['owner','admin'].includes(cloudRole)) {
                     try {
                         await cloudClient.from('app_state').upsert({ key: 'personnel_roles', value: { roles: next, updatedAt: new Date().toISOString(), version: 1 }, updated_by: cloudSession.user.id }, { onConflict: 'key' });
@@ -3321,10 +3394,10 @@
 
             const requestAdminAccess = () => {
                 if (canAdminCloud()) { setActiveTab('admin'); return; }
-                if (currentOperatorRef.current && getPersonnelRole(currentOperatorRef.current.name) !== 'admin') { alert('您無權訪問'); return; }
+                if (currentOperatorRef.current && getEffectiveOperatorRole(currentOperatorRef.current) !== 'admin') { alert('您無權訪問；管理員需設定並輸入密碼。'); return; }
                 openOperatorIdentityModal('進入管理中心', () => {
-                    if (currentOperatorRef.current && getPersonnelRole(currentOperatorRef.current.name) === 'admin') setActiveTab('admin');
-                    else alert('您無權訪問');
+                    if (currentOperatorRef.current && getEffectiveOperatorRole(currentOperatorRef.current) === 'admin') setActiveTab('admin');
+                    else alert('您無權訪問；管理員需設定並輸入密碼。');
                 });
             };
 
@@ -4204,6 +4277,8 @@
                 const logTotalPages = Math.max(1, Math.ceil(logs.length / LOG_PAGE_SIZE));
                 const safeLogPage = Math.min(Math.max(logPage, 1), logTotalPages);
                 const pagedLogs = logs.slice((safeLogPage - 1) * LOG_PAGE_SIZE, safeLogPage * LOG_PAGE_SIZE);
+                const adminRosterEntries = DEPARTMENTS.flatMap(dept => (operatorRoster[dept] || []).filter(name => getPersonnelRole(name) === 'admin').map(name => ({ dept, name, key: getPersonnelPasswordKey(dept, name), password: adminPasswords[getPersonnelPasswordKey(dept, name)] || '' })));
+                const visibleAdminPasswordEntries = canManageSupabaseMembers() ? adminRosterEntries : adminRosterEntries.filter(item => currentOperator && currentOperator.adminAuthenticated && currentOperator.department === item.dept && currentOperator.name === item.name);
                 return React.createElement('div', { className: 'fade-in-up flex flex-col gap-4' },
                     React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5' },
                         React.createElement('div', { className: 'flex flex-col md:flex-row md:items-start justify-between gap-4' },
@@ -4214,7 +4289,7 @@
                             ),
                             React.createElement('div', { className: 'flex flex-wrap gap-2' },
                                 React.createElement('span', { className: 'px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-sm' }, configured ? 'Supabase 已設定' : '本地模式'),
-                                React.createElement('span', { className: 'px-3 py-1.5 rounded-full bg-blue-100 text-blue-800 font-bold text-sm' }, currentOperator ? `${PERSONNEL_ROLE_LABELS[getPersonnelRole(currentOperator.name)] || '操作員'}：${currentOperator.department}/${currentOperator.name}` : (ROLE_LABELS[cloudRole] || cloudRole)),
+                                React.createElement('span', { className: 'px-3 py-1.5 rounded-full bg-blue-100 text-blue-800 font-bold text-sm' }, currentOperator ? `${PERSONNEL_ROLE_LABELS[getEffectiveOperatorRole(currentOperator)] || '操作員'}：${currentOperator.department}/${currentOperator.name}` : (ROLE_LABELS[cloudRole] || cloudRole)),
                                 currentOperator && React.createElement('button', { onClick: clearOperatorIdentity, className: 'px-4 py-2 rounded-lg bg-purple-700 text-white font-bold text-sm' }, '切換操作員'),
                                 cloudSession && React.createElement('button', { onClick: () => cloudClient.auth.signOut(), className: 'px-4 py-2 rounded-lg bg-slate-700 text-white font-bold text-sm' }, '登出')
                             )
@@ -4297,6 +4372,20 @@
                                 );
                             }))
                         )
+                    ),
+                    React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-amber-200 dark:border-amber-800 shadow-md p-4' },
+                        React.createElement('div', { className: 'flex flex-col md:flex-row md:items-start justify-between gap-3 mb-3' },
+                            React.createElement('div', null,
+                                React.createElement('h3', { className: 'text-lg font-extrabold mb-1 text-amber-800 dark:text-amber-200' }, canManageSupabaseMembers() ? '管理員密碼管理' : '我的管理員密碼'),
+                                React.createElement('p', { className: 'text-sm text-slate-600 dark:text-slate-300 leading-relaxed' }, canManageSupabaseMembers() ? 'Owner 可查看並修改所有名單管理員密碼；沒有設定密碼的人即使被標為管理員，也只能以操作員身份使用。' : '管理員可查看並修改自己的密碼；未設定密碼時不能取得管理權限。')
+                            ),
+                            React.createElement('span', { className: 'px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 font-bold text-sm self-start' }, adminRosterEntries.filter(item => item.password).length, ' / ', adminRosterEntries.length, ' 已設定')
+                        ),
+                        visibleAdminPasswordEntries.length ? React.createElement('div', { className: 'space-y-2' }, visibleAdminPasswordEntries.map(item => React.createElement('div', { key: item.key, className: 'grid grid-cols-1 md:grid-cols-[150px_1fr_auto] gap-2 items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/45 px-3 py-2' },
+                            React.createElement('div', { className: 'text-sm font-extrabold text-slate-800 dark:text-slate-100' }, item.dept, ' / ', item.name),
+                            React.createElement('input', { type: canManageSupabaseMembers() ? 'text' : 'password', value: adminPasswordDrafts[item.key] ?? item.password, onChange: e => setAdminPasswordDrafts(prev => ({ ...prev, [item.key]: e.target.value })), placeholder: '設定管理員密碼', className: 'w-full border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-bold' }),
+                            React.createElement('button', { onClick: () => savePersonnelAdminPassword(item.dept, item.name), className: `px-4 py-2 rounded-lg text-white font-extrabold ${currentTheme.color} ${currentTheme.hoverBg}` }, '保存密碼')
+                        ))) : React.createElement('div', { className: 'text-sm text-slate-500 dark:text-slate-400 font-bold rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-4' }, canManageSupabaseMembers() ? '目前名單中沒有管理員。' : '請先以已設定密碼的名單管理員身份登入，才可在此修改自己的密碼。')
                     ),
                     configured && !cloudSession && React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5 max-w-xl' },
                         React.createElement('h3', { className: 'text-lg font-extrabold mb-3' }, authMode === 'signin' ? '登入' : '註冊新帳號'),
@@ -4803,7 +4892,7 @@
                             React.createElement("button", { onClick: requestAdminAccess, title: cloudStatus, className: "flex items-center gap-1.5 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-bold transition-colors" },
                                 React.createElement(IconFilter, { size: 18 }),
                                 " ",
-                                React.createElement("span", { className: "hidden sm:inline" }, cloudSession ? (ROLE_LABELS[cloudRole] || cloudRole) : (currentOperator ? `${PERSONNEL_ROLE_LABELS[getPersonnelRole(currentOperator.name)] || '操作員'}：${currentOperator.name}` : "登入/管理"))))),
+                                React.createElement("span", { className: "hidden sm:inline" }, cloudSession ? (ROLE_LABELS[cloudRole] || cloudRole) : (currentOperator ? `${PERSONNEL_ROLE_LABELS[getEffectiveOperatorRole(currentOperator)] || '操作員'}：${currentOperator.name}` : "登入/管理"))))),
                 React.createElement("main", { className: "max-w-[1600px] mx-auto p-4 flex-1 flex flex-col w-full" },
                     !cloudClient && React.createElement("div", { className: "no-print mb-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3 font-bold shadow-sm" },
                         "⚠️ 尚未連接 Supabase 雲端。現在看到的是本機瀏覽器暫存資料，可能不是最新內容；請管理員設定 supabase-config.js 或在管理中心填入 Supabase 設定。"),
@@ -5047,10 +5136,13 @@
                             React.createElement("p", { className: "text-sm text-slate-600 dark:text-slate-300 leading-relaxed" }, "本次操作「", pendingActionLabel, "」需要留下操作紀錄或確認權限。請先選擇你的部門與姓名。"),
                             React.createElement("div", null,
                                 React.createElement("label", { className: "block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2" }, "部門"),
-                                React.createElement("select", { value: operatorSelectDept, onChange: e => { const dept = e.target.value; const names = operatorRoster[dept] || []; setOperatorSelectDept(dept); setOperatorSelectName(names[0] || ''); }, className: `w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3.5 py-3 focus:outline-none transition-colors ${currentTheme.ring}` }, DEPARTMENTS.map(dept => React.createElement("option", { key: dept, value: dept, disabled: !(operatorRoster[dept] || []).length }, `${dept}${(operatorRoster[dept] || []).length ? '' : '（未設定）'}`)))),
+                                React.createElement("select", { value: operatorSelectDept, onChange: e => { const dept = e.target.value; const names = operatorRoster[dept] || []; setOperatorSelectDept(dept); setOperatorSelectName(names[0] || ''); setOperatorAdminPassword(''); }, className: `w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3.5 py-3 focus:outline-none transition-colors ${currentTheme.ring}` }, DEPARTMENTS.map(dept => React.createElement("option", { key: dept, value: dept, disabled: !(operatorRoster[dept] || []).length }, `${dept}${(operatorRoster[dept] || []).length ? '' : '（未設定）'}`)))),
                             React.createElement("div", null,
                                 React.createElement("label", { className: "block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2" }, "姓名"),
-                                React.createElement("select", { value: operatorSelectName, onChange: e => setOperatorSelectName(e.target.value), className: `w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3.5 py-3 focus:outline-none transition-colors ${currentTheme.ring}` }, ((operatorRoster[operatorSelectDept] || []).length ? operatorRoster[operatorSelectDept] : ['']).map(name => React.createElement("option", { key: name || 'empty', value: name, disabled: !name }, name || '此部門尚未設定操作員')))),
+                                React.createElement("select", { value: operatorSelectName, onChange: e => { setOperatorSelectName(e.target.value); setOperatorAdminPassword(''); }, className: `w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3.5 py-3 focus:outline-none transition-colors ${currentTheme.ring}` }, ((operatorRoster[operatorSelectDept] || []).length ? operatorRoster[operatorSelectDept] : ['']).map(name => React.createElement("option", { key: name || 'empty', value: name, disabled: !name }, name || '此部門尚未設定操作員')))),
+                            getPersonnelRole(operatorSelectName) === 'admin' && React.createElement("div", { className: "rounded-xl border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-3" },
+                                React.createElement("label", { className: "block text-sm font-extrabold text-amber-900 dark:text-amber-100 mb-2" }, "管理員密碼"),
+                                hasAdminPassword(operatorSelectDept, operatorSelectName) ? React.createElement("input", { type: "password", value: operatorAdminPassword, onChange: e => setOperatorAdminPassword(e.target.value), placeholder: "輸入管理員密碼", className: `w-full bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded-lg px-3.5 py-2.5 focus:outline-none transition-colors ${currentTheme.ring}` }) : React.createElement("p", { className: "text-xs font-bold text-amber-800 dark:text-amber-100 leading-relaxed" }, "此管理員尚未設定密碼；選擇後只會以操作員身份使用，不能進入管理中心。")),
                             React.createElement("div", { className: "flex gap-3 justify-end pt-2" },
                                 React.createElement("button", { onClick: () => { pendingMutationRef.current = null; setOperatorModalOpen(false); }, className: "px-5 py-2.5 rounded-lg font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" }, "取消"),
                                 React.createElement("button", { onClick: confirmOperatorIdentity, className: `px-5 py-2.5 rounded-lg font-bold ${currentTheme.color} text-white ${currentTheme.hoverBg} transition-colors shadow-sm` }, "確認並繼續")))))),
