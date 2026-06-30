@@ -3357,12 +3357,12 @@
             };
 
             const persistSiteAccessPassword = async () => {
-                if (!canAdminCloud()) { alert('您無權訪問'); return; }
+                if (!canManageSupabaseMembers()) { alert('只有 Owner 可以修改進站密碼。'); return; }
                 const nextPassword = String(sitePasswordDraft || '').trim();
                 if (!nextPassword) { alert('密碼不可為空。'); return; }
                 setSiteAccessPassword(nextPassword);
                 localStorage.setItem('maritime_site_access_password', nextPassword);
-                if (cloudClient && cloudSession && ['owner','admin'].includes(cloudRole)) {
+                if (cloudClient && cloudSession && cloudRole === 'owner') {
                     try {
                         await cloudClient.from('app_state').upsert({ key: 'site_access_password', value: { password: nextPassword, updatedAt: new Date().toISOString(), version: 1 }, updated_by: cloudSession.user.id }, { onConflict: 'key' });
                         await cloudClient.from('audit_logs').insert({ actor_id: cloudSession.user.id, actor_email: cloudSession.user.email, action: 'update_site_password', entity_type: 'site_access_password', entity_id: 'site_access_password', summary: '更新進站密碼' });
@@ -4329,9 +4329,9 @@
                         )
                     ),
                     canAdminCloud() && React.createElement(Fragment, null,
-                        React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5' },
+                        canManageSupabaseMembers() && React.createElement('div', { className: 'bg-white dark:bg-darkcard rounded-xl border border-slate-300 dark:border-slate-700 shadow-md p-5' },
                             React.createElement('h3', { className: 'text-lg font-extrabold mb-2' }, '進站密碼設定'),
-                            React.createElement('p', { className: 'text-sm text-slate-600 dark:text-slate-300 mb-3' }, '使用者進入網站前必須輸入此密碼。管理員可在此更新；目前設定會保存於本瀏覽器，若已登入 Supabase 管理員也會同步至雲端。'),
+                            React.createElement('p', { className: 'text-sm text-slate-600 dark:text-slate-300 mb-3' }, '使用者進入網站前必須輸入此密碼。只有 Owner 可以在此更新；目前設定會保存於本瀏覽器，若已登入 Supabase Owner 也會同步至雲端。'),
                             React.createElement('div', { className: 'flex flex-col md:flex-row gap-2 max-w-xl' },
                                 React.createElement('input', { type: 'password', value: sitePasswordDraft, onChange: e => setSitePasswordDraft(e.target.value), className: 'flex-1 border rounded-lg px-3 py-2', placeholder: '進站密碼' }),
                                 React.createElement('button', { onClick: persistSiteAccessPassword, className: `px-5 py-2 rounded-lg text-white font-bold ${currentTheme.color}` }, '更新密碼')
