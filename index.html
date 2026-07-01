@@ -1811,6 +1811,66 @@
     }
   </style>
 
+  <style id="identity-switch-menu-contrast-fix">
+    .identity-switch-menu {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #94a3b8 !important;
+    }
+    .identity-switch-menu,
+    .identity-switch-menu * {
+      text-shadow: none !important;
+      -webkit-text-fill-color: currentColor !important;
+    }
+    .identity-menu-current {
+      background: #e2e8f0 !important;
+      border-color: #94a3b8 !important;
+      color: #0f172a !important;
+    }
+    .identity-menu-kicker { color: #334155 !important; }
+    .identity-menu-current-text { color: #0f172a !important; }
+    .identity-menu-item {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #cbd5e1 !important;
+    }
+    .identity-menu-item:hover { filter: brightness(0.96) !important; }
+    .identity-menu-cloud .identity-menu-title { color: #1d4ed8 !important; }
+    .identity-menu-roster .identity-menu-title { color: #6d28d9 !important; }
+    .identity-menu-item .identity-menu-desc { color: #475569 !important; }
+    .identity-menu-exit {
+      background: #fff1f2 !important;
+      color: #7f1d1d !important;
+    }
+    .identity-menu-exit .identity-menu-title { color: #991b1b !important; }
+    .identity-menu-exit .identity-menu-desc { color: #b91c1c !important; }
+    html.dark .identity-switch-menu {
+      background: #0f172a !important;
+      color: #f8fafc !important;
+      border-color: #64748b !important;
+    }
+    html.dark .identity-menu-current {
+      background: #1e293b !important;
+      border-color: #64748b !important;
+      color: #f8fafc !important;
+    }
+    html.dark .identity-menu-kicker { color: #bfdbfe !important; }
+    html.dark .identity-menu-current-text { color: #ffffff !important; }
+    html.dark .identity-menu-item {
+      background: #f8fafc !important;
+      color: #0f172a !important;
+      border-color: #94a3b8 !important;
+    }
+    html.dark .identity-menu-cloud .identity-menu-title { color: #1d4ed8 !important; }
+    html.dark .identity-menu-roster .identity-menu-title { color: #6d28d9 !important; }
+    html.dark .identity-menu-item .identity-menu-desc { color: #334155 !important; }
+    html.dark .identity-menu-exit {
+      background: #fff1f2 !important;
+      color: #7f1d1d !important;
+    }
+    html.dark .identity-menu-exit .identity-menu-title { color: #991b1b !important; }
+    html.dark .identity-menu-exit .identity-menu-desc { color: #b91c1c !important; }
+  </style>
 </head>
 <body class="bg-slate-200 dark:bg-darkbg text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen flex flex-col">
   
@@ -4891,19 +4951,19 @@
                                     " ",
                                     React.createElement("span", { className: "hidden sm:inline" }, "切換身份"),
                                     React.createElement(IconChevronDown, { size: 14 })),
-                                openDropdownId === 'identity-switch' && React.createElement("div", { onClick: (e) => e.stopPropagation(), className: "absolute right-0 mt-2 w-72 bg-white dark:bg-slate-950 rounded-xl shadow-2xl z-50 overflow-hidden text-slate-900 dark:text-slate-50 border border-slate-200 dark:border-slate-600" },
-                                    React.createElement("div", { className: "px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-50" },
-                                        React.createElement("div", { className: "text-xs font-extrabold text-slate-600 dark:text-slate-300 mb-1" }, "目前身份"),
-                                        React.createElement("div", { className: "text-sm font-extrabold text-slate-950 dark:text-white" }, cloudSession ? (ROLE_LABELS[cloudRole] || cloudRole) : (currentOperator ? `${PERSONNEL_ROLE_LABELS[getEffectiveOperatorRole(currentOperator)] || '操作員'}：${currentOperator.department}/${currentOperator.name}` : "未選擇身份"))),
-                                    React.createElement("button", { onClick: openCloudIdentityLogin, style: { backgroundColor: '#ffffff', color: '#0f172a' }, className: "w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-slate-200 dark:border-slate-700" },
-                                        React.createElement("div", { style: { color: '#1d4ed8' }, className: "font-extrabold text-sm" }, "Owner / 雲端管理員登入"),
-                                        React.createElement("div", { style: { color: '#475569' }, className: "text-xs mt-0.5" }, "前往管理中心輸入 Supabase 帳號密碼。")),
-                                    React.createElement("button", { onClick: openRosterIdentitySwitch, style: { backgroundColor: '#ffffff', color: '#0f172a' }, className: "w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors border-b border-slate-200 dark:border-slate-700" },
-                                        React.createElement("div", { style: { color: '#6d28d9' }, className: "font-extrabold text-sm" }, "名單管理員 / 操作員"),
-                                        React.createElement("div", { style: { color: '#475569' }, className: "text-xs mt-0.5" }, "選擇部門姓名；名單管理員需輸入自己的管理員密碼。")),
-                                    React.createElement("button", { onClick: clearAllIdentity, style: { backgroundColor: '#fff1f2', color: '#7f1d1d' }, className: "w-full text-left px-4 py-3 hover:brightness-95 transition-colors" },
-                                        React.createElement("div", { style: { color: '#991b1b' }, className: "font-extrabold text-sm" }, "退出目前身份"),
-                                        React.createElement("div", { style: { color: '#b91c1c' }, className: "text-xs mt-0.5" }, "清除 Owner/管理員/操作員身份，回到一般瀏覽。")))) ,
+                                openDropdownId === 'identity-switch' && React.createElement("div", { onClick: (e) => e.stopPropagation(), className: "identity-switch-menu absolute right-0 mt-2 w-72 rounded-xl shadow-2xl z-50 overflow-hidden border" },
+                                    React.createElement("div", { className: "identity-menu-current px-4 py-3 border-b" },
+                                        React.createElement("div", { className: "identity-menu-kicker text-xs font-extrabold mb-1" }, "目前身份"),
+                                        React.createElement("div", { className: "identity-menu-current-text text-sm font-extrabold" }, cloudSession ? (ROLE_LABELS[cloudRole] || cloudRole) : (currentOperator ? `${PERSONNEL_ROLE_LABELS[getEffectiveOperatorRole(currentOperator)] || '操作員'}：${currentOperator.department}/${currentOperator.name}` : "未選擇身份"))),
+                                    React.createElement("button", { onClick: openCloudIdentityLogin, className: "identity-menu-item identity-menu-cloud w-full text-left px-4 py-3 border-b transition-colors" },
+                                        React.createElement("div", { className: "identity-menu-title font-extrabold text-sm" }, "Owner / 雲端管理員登入"),
+                                        React.createElement("div", { className: "identity-menu-desc text-xs mt-0.5" }, "前往管理中心輸入 Supabase 帳號密碼。")),
+                                    React.createElement("button", { onClick: openRosterIdentitySwitch, className: "identity-menu-item identity-menu-roster w-full text-left px-4 py-3 border-b transition-colors" },
+                                        React.createElement("div", { className: "identity-menu-title font-extrabold text-sm" }, "名單管理員 / 操作員"),
+                                        React.createElement("div", { className: "identity-menu-desc text-xs mt-0.5" }, "選擇部門姓名；名單管理員需輸入自己的管理員密碼。")),
+                                    React.createElement("button", { onClick: clearAllIdentity, className: "identity-menu-item identity-menu-exit w-full text-left px-4 py-3 transition-colors" },
+                                        React.createElement("div", { className: "identity-menu-title font-extrabold text-sm" }, "退出目前身份"),
+                                        React.createElement("div", { className: "identity-menu-desc text-xs mt-0.5" }, "清除 Owner/管理員/操作員身份，回到一般瀏覽。")))) ,
                             React.createElement("div", { className: "w-px h-6 bg-white/30 mx-1" }),
                             React.createElement("button", { onClick: handleManualSyncLatest, disabled: isCloudBusy, className: "flex items-center gap-1.5 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-bold transition-colors disabled:opacity-60" },
                                 React.createElement(IconRotateCcw, { size: 18 }),
